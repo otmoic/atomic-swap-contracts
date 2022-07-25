@@ -33,12 +33,12 @@ jobs:
           nix_path: nixpkgs=channel:nixos-unstable
 
       - name: Clippy
-        run: nix develop -c cargo clippy -p near
+        run: nix develop -c cargo clippy -p near-atomic-swap
         env:
           RUST_BACKTRACE: 1
 
       - name: Build
-        run: nix develop -c cargo build -p near
+        run: nix develop -c cargo build -p near-atomic-swap
 
       - name: Test
-        run: nix develop -c cargo test -p near
+        run: nix develop -c cargo test -p near-atomic-swap
