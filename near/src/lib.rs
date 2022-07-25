@@ -1,3 +1,5 @@
+#![allow(clippy::too_many_arguments)]
+
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::{log, near_bindgen, AccountId, Balance};
 
@@ -5,6 +7,7 @@ use near_sdk::{log, near_bindgen, AccountId, Balance};
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct Contract {}
 
+#[allow(clippy::derivable_impls)]
 impl Default for Contract {
     fn default() -> Self {
         Self {}
@@ -70,8 +73,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn get_default_greeting() {
-        let contract = Contract::default();
-        assert_eq!(contract.transfer_out(), ());
+    fn default_contract() {
+        Contract::default();
     }
 }
