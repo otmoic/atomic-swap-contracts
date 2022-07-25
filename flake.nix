@@ -28,8 +28,6 @@
       {
         devShell = mkShell {
           buildInputs = [
-            zlib
-            pkg-config
             rust
             dr
             updateDependencyScript
