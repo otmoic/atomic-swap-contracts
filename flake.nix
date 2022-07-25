@@ -28,6 +28,7 @@
       {
         devShell = mkShell {
           buildInputs = [
+            pkg-config
             rust
             dr
             updateDependencyScript
