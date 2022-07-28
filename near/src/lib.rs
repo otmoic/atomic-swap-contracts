@@ -15,7 +15,7 @@ enum TransferStatus {
     Refunded,
 }
 
-#[derive(BorshDeserialize, BorshSerialize)]
+#[derive(BorshDeserialize, BorshSerialize, Debug, PartialEq)]
 pub enum Event {
     LogNewTransferOut(
         (
@@ -24,9 +24,7 @@ pub enum Event {
             AccountId, // receiver
             Balance,
             HashLock,
-            u64,       // UNIX timestamp
-            u64,       // dst chain Id
-            AccountId, // dst address
+            u64, // UNIX timestamp
         ),
     ),
     LogNewTransferIn(
@@ -36,9 +34,7 @@ pub enum Event {
             AccountId, // receiver
             Balance,
             HashLock,
-            u64,        // UNIX timestamp
-            u64,        // dst chain Id
-            TransferId, // outbound transfer id at src chain
+            u64, // UNIX timestamp
         ),
     ),
     LogTransferConfirmed((TransferId, [u8; 32])),
@@ -71,10 +67,8 @@ impl Contract {
         amount: Balance,
         hashlock: [u8; 32],
         timelock: Duration,
-        dst_chain_id: u64,
-        dst_address: AccountId,
     ) -> Event {
-        require!(env::current_account_id() == sender, "require sender");
+        require!(env::signer_account_id() == sender, "require sender");
         log!("transfer out to {}", receiver);
 
         if near_sdk::env::attached_deposit() < amount {
@@ -93,8 +87,6 @@ impl Contract {
             amount,
             hashlock,
             timelock.as_secs(),
-            dst_chain_id,
-            dst_address,
         ))
     }
 
@@ -106,12 +98,10 @@ impl Contract {
         amount: Balance,
         hashlock: [u8; 32],
         timelock: Duration,
-        src_chain_id: u64,
-        src_transfer_id: TransferId,
     ) -> Event {
         log!("transfer in from {}", sender);
 
-        require!(env::current_account_id() == dst_address, "require sender");
+        require!(env::signer_account_id() == dst_address, "require sender");
         let transfer_id = keccak256(&sender, &dst_address, amount, hashlock, timelock);
         self.transfers
             .insert(transfer_id.clone(), TransferStatus::Pending);
@@ -123,8 +113,6 @@ impl Contract {
             amount,
             hashlock,
             timelock.as_secs(),
-            src_chain_id,
-            src_transfer_id,
         ))
     }
 
@@ -153,7 +141,7 @@ impl Contract {
 
             *transfer_status = TransferStatus::Confirmed;
 
-            let _ = Promise::new(env::predecessor_account_id()).transfer(amount);
+            let _ = Promise::new(env::current_account_id()).transfer(amount);
             Event::LogTransferConfirmed((pending_transfer_id, preimage))
         } else {
             require!(false, "missing a pending transfer");
@@ -183,7 +171,7 @@ impl Contract {
 
             *transfer_status = TransferStatus::Refunded;
 
-            let _ = Promise::new(sender).transfer(amount);
+            let _ = Promise::new(env::current_account_id()).transfer(amount);
             Event::LogTransferRefunded(pending_transfer_id)
         } else {
             require!(false, "missing a pending transfer");
@@ -221,9 +209,31 @@ fn keccak256_preimage(preimage: [u8; 32]) -> [u8; 32] {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use near_sdk::test_utils::VMContextBuilder;
+    use near_sdk::{testing_env, VMContext};
+    use std::time::SystemTime;
 
+    fn get_context(is_view: bool) -> VMContext {
+        VMContextBuilder::new()
+            .signer_account_id("caller".parse().unwrap())
+            .is_view(is_view)
+            .build()
+    }
+
+    /// Test transfer out without attach balance
     #[test]
-    fn default_contract() {
-        Contract::default();
+    #[should_panic]
+    fn initial_contract() {
+        let context = get_context(false);
+        testing_env!(context);
+
+        let mut contract = Contract::default();
+        let sender: AccountId = "caller".parse().unwrap();
+        let receiver: AccountId = "receiver".parse().unwrap();
+        let now = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap();
+        let five_seconds_later = now + Duration::new(5, 0);
+        let _transfer_out = contract.transfer_out(sender, receiver, 1, [0; 32], five_seconds_later);
     }
 }
