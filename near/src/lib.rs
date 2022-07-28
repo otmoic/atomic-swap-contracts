@@ -10,7 +10,6 @@ pub type HashLock = [u8; 32];
 
 #[derive(BorshDeserialize, BorshSerialize, PartialEq)]
 enum TransferStatus {
-    Null,
     Pending,
     Confirmed,
     Refunded,
@@ -28,7 +27,6 @@ pub enum Event {
             u64,       // UNIX timestamp
             u64,       // dst chain Id
             AccountId, // dst address
-            u64,
         ),
     ),
     LogNewTransferIn(
@@ -65,36 +63,44 @@ impl Default for Contract {
 #[near_bindgen]
 impl Contract {
     /// transfer sets up a new outbound transfer with hash time lock.
+    #[payable]
     pub fn transfer_out(
         &mut self,
         sender: AccountId,
-        bridge: AccountId,
+        receiver: AccountId,
         amount: Balance,
         hashlock: [u8; 32],
         timelock: Duration,
         dst_chain_id: u64,
         dst_address: AccountId,
-        bid_id: u64,
     ) -> Event {
-        log!("transfer out from {}", sender);
         require!(env::current_account_id() == sender, "require sender");
-        let transfer_id = keccak256(&sender, &bridge, amount, hashlock, timelock);
+        log!("transfer out to {}", receiver);
+
+        if near_sdk::env::attached_deposit() < amount {
+            log!("attached deposit should more than {}", amount);
+            env::abort();
+        }
+
+        let transfer_id = keccak256(&sender, &receiver, amount, hashlock, timelock);
+        self.transfers
+            .insert(transfer_id.clone(), TransferStatus::Pending);
+
         Event::LogNewTransferOut((
             transfer_id,
             sender,
-            bridge,
+            receiver,
             amount,
             hashlock,
             timelock.as_secs(),
             dst_chain_id,
             dst_address,
-            bid_id,
         ))
     }
 
     /// transfer sets up a new inbound transfer with hash time lock.
     pub fn transfer_in(
-        &self,
+        &mut self,
         sender: AccountId,
         dst_address: AccountId,
         amount: Balance,
@@ -104,8 +110,12 @@ impl Contract {
         src_transfer_id: TransferId,
     ) -> Event {
         log!("transfer in from {}", sender);
-        require!(env::current_account_id() == sender, "require sender");
+
+        require!(env::current_account_id() == dst_address, "require sender");
         let transfer_id = keccak256(&sender, &dst_address, amount, hashlock, timelock);
+        self.transfers
+            .insert(transfer_id.clone(), TransferStatus::Pending);
+
         Event::LogNewTransferIn((
             transfer_id,
             sender,
@@ -129,8 +139,7 @@ impl Contract {
         preimage: [u8; 32],
     ) -> Event {
         log!("confirm with {}", sender);
-        let pending_transfer_id =
-            keccak256_pending_transfer(&sender, &receiver, hashlock, timelock, amount, b"NEAR");
+        let pending_transfer_id = keccak256(&sender, &receiver, amount, hashlock, timelock);
 
         if let Some(transfer_status) = self.transfers.get_mut(&pending_transfer_id) {
             require!(
@@ -144,7 +153,7 @@ impl Contract {
 
             *transfer_status = TransferStatus::Confirmed;
 
-            let _ = Promise::new(receiver).transfer(amount);
+            let _ = Promise::new(env::predecessor_account_id()).transfer(amount);
             Event::LogTransferConfirmed((pending_transfer_id, preimage))
         } else {
             require!(false, "missing a pending transfer");
@@ -161,8 +170,7 @@ impl Contract {
         timelock: Duration,
     ) -> Event {
         log!("refund to {}", sender);
-        let pending_transfer_id =
-            keccak256_pending_transfer(&sender, &receiver, hashlock, timelock, amount, b"NEAR");
+        let pending_transfer_id = keccak256(&sender, &receiver, amount, hashlock, timelock);
         if let Some(transfer_status) = self.transfers.get_mut(&pending_transfer_id) {
             require!(
                 *transfer_status == TransferStatus::Pending,
@@ -197,26 +205,6 @@ fn keccak256(
     hasher.update(amount.to_be_bytes());
     hasher.update(hashlock);
     hasher.update(timelock.as_secs().to_be_bytes());
-    let result = hasher.finalize();
-    let out: [u8; 32] = result.try_into().unwrap();
-    out
-}
-
-fn keccak256_pending_transfer(
-    sender: &AccountId,
-    receiver: &AccountId,
-    hashlock: [u8; 32],
-    timelock: Duration,
-    amount: Balance,
-    chain_id: &[u8; 4],
-) -> [u8; 32] {
-    let mut hasher = Sha3_256::new();
-    hasher.update(sender.as_bytes());
-    hasher.update(receiver.as_bytes());
-    hasher.update(hashlock);
-    hasher.update(timelock.as_secs().to_be_bytes());
-    hasher.update(amount.to_be_bytes());
-    hasher.update(chain_id);
     let result = hasher.finalize();
     let out: [u8; 32] = result.try_into().unwrap();
     out
