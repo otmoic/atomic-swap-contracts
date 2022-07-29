@@ -7,6 +7,7 @@ use sha3::{Digest, Sha3_256};
 
 pub type TransferId = [u8; 32];
 pub type HashLock = [u8; 32];
+pub type SecretKey = [u8; 32];
 
 #[derive(BorshDeserialize, BorshSerialize, PartialEq)]
 enum TransferStatus {
@@ -17,7 +18,7 @@ enum TransferStatus {
 
 #[derive(BorshDeserialize, BorshSerialize, Debug, PartialEq)]
 pub enum Event {
-    LogNewTransferOut(
+    Fund(
         (
             TransferId,
             AccountId, // sender
@@ -27,18 +28,8 @@ pub enum Event {
             u64, // UNIX timestamp
         ),
     ),
-    LogNewTransferIn(
-        (
-            TransferId,
-            AccountId, // sender
-            AccountId, // receiver
-            Balance,
-            HashLock,
-            u64, // UNIX timestamp
-        ),
-    ),
-    LogTransferConfirmed((TransferId, [u8; 32])),
-    LogTransferRefunded(TransferId),
+    Confirmed((TransferId, SecretKey)),
+    Refunded(TransferId),
 }
 
 #[near_bindgen]
@@ -58,9 +49,9 @@ impl Default for Contract {
 
 #[near_bindgen]
 impl Contract {
-    /// transfer sets up a new outbound transfer with hash time lock.
+    /// sets up a new transfer with hash time lock.
     #[payable]
-    pub fn transfer_out(
+    pub fn fund(
         &mut self,
         sender: AccountId,
         receiver: AccountId,
@@ -68,48 +59,22 @@ impl Contract {
         hashlock: [u8; 32],
         timelock: Duration,
     ) -> Event {
-        require!(env::signer_account_id() == sender, "require sender");
-        log!("transfer out to {}", receiver);
-
         if near_sdk::env::attached_deposit() < amount {
             log!("attached deposit should more than {}", amount);
             env::abort();
         }
 
+        log!("transfer from {} to {}", sender, receiver);
+
         let transfer_id = keccak256(&sender, &receiver, amount, hashlock, timelock);
+
         self.transfers
             .insert(transfer_id.clone(), TransferStatus::Pending);
 
-        Event::LogNewTransferOut((
+        Event::Fund((
             transfer_id,
             sender,
             receiver,
-            amount,
-            hashlock,
-            timelock.as_secs(),
-        ))
-    }
-
-    /// transfer sets up a new inbound transfer with hash time lock.
-    pub fn transfer_in(
-        &mut self,
-        sender: AccountId,
-        dst_address: AccountId,
-        amount: Balance,
-        hashlock: [u8; 32],
-        timelock: Duration,
-    ) -> Event {
-        log!("transfer in from {}", sender);
-
-        require!(env::signer_account_id() == dst_address, "require sender");
-        let transfer_id = keccak256(&sender, &dst_address, amount, hashlock, timelock);
-        self.transfers
-            .insert(transfer_id.clone(), TransferStatus::Pending);
-
-        Event::LogNewTransferIn((
-            transfer_id,
-            sender,
-            dst_address,
             amount,
             hashlock,
             timelock.as_secs(),
@@ -124,7 +89,7 @@ impl Contract {
         amount: Balance,
         hashlock: [u8; 32],
         timelock: Duration,
-        preimage: [u8; 32],
+        secret_key: [u8; 32],
     ) -> Event {
         log!("confirm with {}", sender);
         let pending_transfer_id = keccak256(&sender, &receiver, amount, hashlock, timelock);
@@ -135,20 +100,21 @@ impl Contract {
                 "not pending transfer"
             );
             require!(
-                hashlock == keccak256_preimage(preimage),
-                "incorrect preimage"
+                hashlock == keccak256_preimage(secret_key),
+                "incorrect secret_key"
             );
 
             *transfer_status = TransferStatus::Confirmed;
 
             let _ = Promise::new(env::current_account_id()).transfer(amount);
-            Event::LogTransferConfirmed((pending_transfer_id, preimage))
+            Event::Confirmed((pending_transfer_id, secret_key))
         } else {
             require!(false, "missing a pending transfer");
             panic!("it should return before go here");
         }
     }
 
+    /// refund when over timelock
     pub fn refund(
         &mut self,
         sender: AccountId,
@@ -172,7 +138,7 @@ impl Contract {
             *transfer_status = TransferStatus::Refunded;
 
             let _ = Promise::new(env::current_account_id()).transfer(amount);
-            Event::LogTransferRefunded(pending_transfer_id)
+            Event::Refunded(pending_transfer_id)
         } else {
             require!(false, "missing a pending transfer");
             panic!("it should return before go here");
@@ -234,6 +200,6 @@ mod tests {
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap();
         let five_seconds_later = now + Duration::new(5, 0);
-        let _transfer_out = contract.transfer_out(sender, receiver, 1, [0; 32], five_seconds_later);
+        let _transfer_out = contract.fund(sender, receiver, 1, [0; 32], five_seconds_later);
     }
 }
