@@ -30,11 +30,8 @@ jobs:
       #   env:
       #     RUST_BACKTRACE: 1
 
-      - name: Test
-        run: nix develop -c cargo test -p near-atomic-swap
-
       - name: WASM Build
         run: nix develop -c cargo build -p near-atomic-swap --target=wasm32-unknown-unknown
 
-      - name: Integration Test
-        run: nix develop -c cargo test  -p near-atomic-swap --test integration-tests
+      - name: Test
+        run: nix develop -c cargo test -p near-atomic-swap
