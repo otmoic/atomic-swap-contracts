@@ -33,6 +33,8 @@
             rust
             dr
             updateDependencyScript
+            openssl
+            pkg-config
           ];
         };
       }
