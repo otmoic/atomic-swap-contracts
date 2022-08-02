@@ -10,7 +10,7 @@ async fn register_user(
     worker: &Worker<impl Network>,
     contract: &Contract,
     account_id: &AccountId,
-) -> anyhow::Result<()> {
+) -> Result<()> {
     let res = contract
         .call(&worker, "storage_deposit")
         .args_json((account_id, Option::<bool>::None))?
@@ -26,7 +26,7 @@ async fn register_user(
 async fn init(
     worker: &Worker<impl DevNetwork>,
     initial_balance: U128,
-) -> anyhow::Result<(Contract, Account)> {
+) -> Result<(Contract, Account)> {
     let contract = worker
         .dev_deploy(
             &include_bytes!("../../target/wasm32-unknown-unknown/debug/near_atomic_swap.wasm")
