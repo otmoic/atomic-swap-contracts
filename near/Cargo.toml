@@ -7,7 +7,7 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-near-sdk = "4.0.0"
+near-sdk = { git = "https://github.com/near/near-sdk-rs", branch = "master" }
 uint = { version = "0.9.3", default-features = false }
 
 [dev-dependencies]
