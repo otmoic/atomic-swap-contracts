@@ -37,4 +37,4 @@ jobs:
       - name: WASM Build & Test
         run: |
           nix develop -c cargo build -p near-atomic-swap --target=wasm32-unknown-unknown
-          nix develop -c cargo test -p near-atomic-swap --examples
+          # nix develop -c cargo test -p near-atomic-swap --examples
