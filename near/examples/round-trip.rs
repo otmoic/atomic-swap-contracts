@@ -4,6 +4,8 @@ use near_units::parse_near;
 use workspaces::prelude::*;
 use workspaces::{Account, AccountId, Contract, DevNetwork, Network, Worker};
 
+fn main() {}
+
 async fn register_user(
     worker: &Worker<impl Network>,
     contract: &Contract,
@@ -53,7 +55,7 @@ async fn init(
 }
 
 #[tokio::test]
-async fn round_trup() -> Result<()> {
+async fn round_trip() -> Result<()> {
     let initial_balance = U128::from(parse_near!("10000 N"));
     let worker = workspaces::sandbox().await?;
     let (_contract, _prefund_user) = init(&worker, initial_balance).await?;

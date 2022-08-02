@@ -29,10 +29,12 @@ jobs:
       #   run: nix develop -c cargo clippy -p near-atomic-swap
       #   env:
       #     RUST_BACKTRACE: 1
-      - name: Native Build
-        run: nix develop -c cargo build -p near-atomic-swap
+      - name: Native Build & Test
+        run: |
+          nix develop -c cargo build -p near-atomic-swap
+          nix develop -c cargo test -p near-atomic-swap
 
       - name: WASM Build & Test
         run: |
           nix develop -c cargo build -p near-atomic-swap --target=wasm32-unknown-unknown
-          nix develop -c cargo test -p near-atomic-swap
+          nix develop -c cargo test -p near-atomic-swap --examples
