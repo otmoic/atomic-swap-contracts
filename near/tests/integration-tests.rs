@@ -27,7 +27,7 @@ async fn init(
 ) -> anyhow::Result<(Contract, Account)> {
     let contract = worker
         .dev_deploy(
-            &include_bytes!("../../target/wasm32-unknown-unknown/release/near_atomic_swap.wasm")
+            &include_bytes!("../../target/wasm32-unknown-unknown/debug/near_atomic_swap.wasm")
                 .to_vec(),
         )
         .await?;
