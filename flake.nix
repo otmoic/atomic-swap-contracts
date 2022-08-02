@@ -14,7 +14,9 @@
         pkgs = import nixpkgs {
           inherit system overlays;
         };
-        rust = pkgs.rust-bin.stable."1.62.1".default;
+        rust = pkgs.rust-bin.stable."1.62.1".default.override {
+          targets = [ "wasm32-unknown-unknown" ];
+        };
         dr = dependency-refresh.defaultPackage.${system};
         updateDependencyScript = pkgs.writeShellScriptBin "update-dependency" ''
           dr ./$1/Cargo.toml
@@ -31,6 +33,8 @@
             rust
             dr
             updateDependencyScript
+            openssl
+            pkg-config
           ];
         };
       }
