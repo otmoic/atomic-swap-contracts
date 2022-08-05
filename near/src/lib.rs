@@ -9,6 +9,11 @@ pub type TransferId = [u8; 32];
 pub type HashLock = [u8; 32];
 pub type SecretKey = [u8; 32];
 
+/// The constant fee to platform for each transfer
+const FEE: Balance = 1;
+/// The address of the platform to receive the fee
+const PLATFORM: &'static str = "platform.near";
+
 #[derive(BorshDeserialize, BorshSerialize, PartialEq)]
 enum TransferStatus {
     Pending,
@@ -61,8 +66,12 @@ impl Contract {
         hashlock: [u8; 32],
         timelock: Duration,
     ) {
-        if near_sdk::env::attached_deposit() < amount {
-            log!("attached deposit should more than {}", amount);
+        if near_sdk::env::attached_deposit() < amount + FEE {
+            log!(
+                "attached deposit should more than {} and fee {}",
+                amount,
+                FEE
+            );
             env::abort();
         }
 
@@ -105,7 +114,10 @@ impl Contract {
 
             *transfer_status = TransferStatus::Confirmed;
 
-            let _ = Promise::new(env::current_account_id()).transfer(amount);
+            let _ = Promise::new(env::current_account_id())
+                .transfer(amount)
+                .and(Promise::new(PLATFORM.parse().unwrap()).transfer(FEE));
+
             self.events
                 .push(Event::Confirmed((pending_transfer_id, secret_key)));
         } else {
