@@ -39,6 +39,7 @@ mod test {
             .call(&worker, "fund")
             .args_json((sender, receiver, amount, hashlock, timelock))?
             .gas(300_000_000_000_000)
+            .deposit(1001)
             .transact()
             .await?;
         assert!(res.is_success());
