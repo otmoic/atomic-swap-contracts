@@ -3,10 +3,9 @@ fn main() {}
 #[cfg(test)]
 mod test {
     use anyhow::Result;
-    use near_units::parse_near;
     use std::time::SystemTime;
     use workspaces::prelude::*;
-    use workspaces::{types::Balance, Account, AccountId, Contract, DevNetwork, Network, Worker};
+    use workspaces::{types::Balance, AccountId, Contract, DevNetwork, Worker};
 
     async fn init(worker: &Worker<impl DevNetwork>) -> Result<Contract> {
         let wasm = std::fs::read("../target/wasm32-unknown-unknown/release/near_atomic_swap.wasm")?;

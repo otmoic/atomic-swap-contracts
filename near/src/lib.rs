@@ -12,7 +12,7 @@ pub type SecretKey = [u8; 32];
 /// The constant fee to platform for each transfer
 const FEE: Balance = 1;
 /// The address of the platform to receive the fee
-const PLATFORM: &'static str = "platform.near";
+const PLATFORM: &str = "platform.near";
 
 #[derive(BorshDeserialize, BorshSerialize, PartialEq)]
 enum TransferStatus {
@@ -79,8 +79,7 @@ impl Contract {
 
         let transfer_id = keccak256(&sender, &receiver, amount, hashlock, timelock);
 
-        self.transfers
-            .insert(transfer_id.clone(), TransferStatus::Pending);
+        self.transfers.insert(transfer_id, TransferStatus::Pending);
 
         self.events.push(Event::Fund((
             transfer_id,
