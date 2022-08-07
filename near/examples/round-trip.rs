@@ -27,12 +27,9 @@ async fn init(
     worker: &Worker<impl DevNetwork>,
     initial_balance: U128,
 ) -> Result<(Contract, Account)> {
-    let contract = worker
-        .dev_deploy(
-            &include_bytes!("../../target/wasm32-unknown-unknown/debug/near_atomic_swap.wasm")
-                .to_vec(),
-        )
-        .await?;
+    let wasm_bin = std::fs::read("../target/wasm32-unknown-unknown/release/near_atomic_swap.wasm")
+        .expect("wasm binary should provide for running example test");
+    let contract = worker.dev_deploy(&wasm_bin).await?;
 
     let res = contract
         .call(&worker, "new_default_meta")
@@ -54,6 +51,7 @@ async fn init(
     return Ok((contract, alice));
 }
 
+#[test_with::file("target/wasm32-unknown-unknown/release/near_atomic_swap.wasm")]
 #[tokio::test]
 async fn round_trip() -> Result<()> {
     let initial_balance = U128::from(parse_near!("10000 N"));
