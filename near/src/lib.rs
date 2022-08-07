@@ -66,14 +66,14 @@ impl Contract {
         hashlock: [u8; 32],
         timelock: u64,
     ) {
-        // if near_sdk::env::attached_deposit() < amount + FEE {
-        //     log!(
-        //         "attached deposit should more than {} and fee {}",
-        //         amount,
-        //         FEE
-        //     );
-        //     env::abort();
-        // }
+        if near_sdk::env::attached_deposit() < amount + FEE {
+            log!(
+                "attached deposit should more than {} and fee {}",
+                amount,
+                FEE
+            );
+            env::abort();
+        }
 
         log!("transfer from {} to {}", sender, receiver);
 
@@ -206,23 +206,23 @@ mod tests {
             .build()
     }
 
-    // /// Test transfer out without attach balance
-    // #[test]
-    // #[should_panic]
-    // fn initial_contract() {
-    //     let context = get_context(false);
-    //     testing_env!(context);
+    /// Test transfer out without attach balance
+    #[test]
+    #[should_panic]
+    fn initial_contract() {
+        let context = get_context(false);
+        testing_env!(context);
 
-    //     let mut contract = Contract::default();
-    //     let sender: AccountId = "caller".parse().unwrap();
-    //     let receiver: AccountId = "receiver".parse().unwrap();
-    //     let now = SystemTime::now()
-    //         .duration_since(SystemTime::UNIX_EPOCH)
-    //         .unwrap();
-    //     let five_seconds_later = now + Duration::new(5, 0);
-    //     let _fund_contract =
-    //         contract.fund(sender, receiver, 1, [0; 32], five_seconds_later.as_secs());
-    // }
+        let mut contract = Contract::default();
+        let sender: AccountId = "caller".parse().unwrap();
+        let receiver: AccountId = "receiver".parse().unwrap();
+        let now = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap();
+        let five_seconds_later = now + Duration::new(5, 0);
+        let _fund_contract =
+            contract.fund(sender, receiver, 1, [0; 32], five_seconds_later.as_secs());
+    }
 
     #[test]
     fn lock_mechanism() {
