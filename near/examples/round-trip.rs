@@ -37,12 +37,14 @@ mod test {
         let wasm = std::fs::read("../target/wasm32-unknown-unknown/release/near_atomic_swap.wasm")?;
         let contract = worker.dev_deploy(&wasm).await?;
         let res = contract
-            .call(&worker, "fund")
-            .args_json((sender, receiver, amount, hashlock, timelock))?
+            .call(&worker, "ping_pong")
+            .args_json(("ping".to_string(),))?
             .gas(300_000_000_000_000)
             .transact()
             .await?;
         assert!(res.is_success());
+        let return_msg: String = res.json()?;
+        assert_eq!(return_msg, "ping -> pong".to_string());
 
         return Ok(contract);
     }
