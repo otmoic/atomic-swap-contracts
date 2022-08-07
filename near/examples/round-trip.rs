@@ -16,13 +16,13 @@ mod test {
 
     async fn fund(
         worker: &Worker<impl DevNetwork>,
-        contract: Contract,
+        contract: &Contract,
         sender: AccountId,
         receiver: AccountId,
         amount: Balance,
         hashlock: [u8; 32],
         timelock: u64,
-    ) -> Result<Contract> {
+    ) -> Result<()> {
         let res = contract
             .call(&worker, "fund")
             .args_json((sender, receiver, amount, hashlock, timelock))?
@@ -32,19 +32,19 @@ mod test {
             .await?;
         assert!(res.is_success());
 
-        Ok(contract)
+        Ok(())
     }
 
     async fn confirm(
         worker: &Worker<impl DevNetwork>,
-        contract: Contract,
+        contract: &Contract,
         sender: AccountId,
         receiver: AccountId,
         amount: Balance,
         hashlock: [u8; 32],
         timelock: u64,
         secret_key: [u8; 32],
-    ) -> Result<Contract> {
+    ) -> Result<()> {
         let res = contract
             .call(&worker, "confirm")
             .args_json((sender, receiver, amount, hashlock, timelock, secret_key))?
@@ -53,7 +53,7 @@ mod test {
             .await?;
         assert!(res.is_success());
 
-        Ok(contract)
+        Ok(())
     }
 
     #[test_with::file("target/wasm32-unknown-unknown/release/near_atomic_swap.wasm")]
@@ -67,9 +67,9 @@ mod test {
 
         let contract = init(&worker).await?;
 
-        let contract = fund(
+        fund(
             &worker,
-            contract,
+            &contract,
             "caller".parse().unwrap(),
             "receiver".parse().unwrap(),
             1,
@@ -83,7 +83,7 @@ mod test {
 
         confirm(
             &worker,
-            contract,
+            &contract,
             "caller".parse().unwrap(),
             "receiver".parse().unwrap(),
             1,
@@ -99,7 +99,7 @@ mod test {
         // Should panic with double confirm
         confirm(
             &worker,
-            contract,
+            &contract,
             "caller".parse().unwrap(),
             "receiver".parse().unwrap(),
             1,
