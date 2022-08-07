@@ -38,13 +38,13 @@ mod test {
         let contract = worker.dev_deploy(&wasm).await?;
         let res = contract
             .call(&worker, "ping_pong")
-            .args_json(("ping".to_string(), sender))?
+            .args_json((sender, receiver, amount, hashlock, timelock))?
             .gas(300_000_000_000_000)
             .transact()
             .await?;
         assert!(res.is_success());
         let return_msg: String = res.json()?;
-        assert_eq!(return_msg, "ping -> pong".to_string());
+        assert_eq!(return_msg, "".to_string());
 
         return Ok(contract);
     }
