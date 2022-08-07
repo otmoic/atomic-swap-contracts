@@ -36,6 +36,7 @@
             openssl
             pkg-config
           ];
+          RUST_BACKTRACE = 1;
         };
       }
     );
