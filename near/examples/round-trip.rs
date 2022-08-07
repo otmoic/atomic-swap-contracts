@@ -67,9 +67,6 @@ mod test {
 
         let contract = init(&worker).await?;
 
-        let contract_detail = worker.view_account(contract.id()).await?;
-        let contract_balance = contract_detail.balance;
-
         let contract = fund(
             &worker,
             contract,
@@ -83,9 +80,6 @@ mod test {
             timelock,
         )
         .await?;
-
-        let contract_detail = worker.view_account(contract.id()).await?;
-        assert_eq!(contract_detail.balance, contract_balance + 2);
 
         confirm(
             &worker,
@@ -102,9 +96,21 @@ mod test {
         )
         .await?;
 
-        let receiver_account: AccountId = "receiver".parse().unwrap();
-        let account_detail = worker.view_account(&receiver_account).await?;
-        assert_eq!(account_detail.balance, 2);
+        // Should panic with double confirm
+        confirm(
+            &worker,
+            contract,
+            "caller".parse().unwrap(),
+            "receiver".parse().unwrap(),
+            1,
+            [
+                165, 152, 132, 76, 216, 153, 182, 114, 45, 89, 20, 251, 170, 95, 204, 77, 214, 166,
+                43, 58, 171, 243, 206, 181, 109, 46, 63, 177, 197, 13, 234, 154,
+            ],
+            timelock,
+            *b"ssssssssssssssssssssssssssssssss",
+        )
+        .await?;
 
         Ok(())
     }
