@@ -5,6 +5,7 @@ mod test {
     use anyhow::Result;
     use near_sdk::json_types::U128;
     use near_units::parse_near;
+    use std::time::Duration;
     use workspaces::prelude::*;
     use workspaces::{Account, AccountId, Contract, DevNetwork, Network, Worker};
 
@@ -25,30 +26,25 @@ mod test {
         Ok(())
     }
 
-    async fn init(
+    async fn init_fund(
         worker: &Worker<impl DevNetwork>,
-        initial_balance: U128,
-    ) -> Result<(Contract, Account)> {
+        sender: AccountId,
+        receiver: AccountId,
+        amount: U128,
+        hashlock: [u8; 32],
+        timelock: Duration,
+    ) -> Result<Contract> {
         let wasm = std::fs::read("../target/wasm32-unknown-unknown/release/near_atomic_swap.wasm")?;
         let contract = worker.dev_deploy(&wasm).await?;
         let res = contract
-            .call(&worker, "new_default_meta")
-            .args_json((contract.id(), initial_balance))?
+            .call(&worker, "fund")
+            .args_json((sender, receiver, amount, hashlock, timelock))?
             .gas(300_000_000_000_000)
             .transact()
             .await?;
         assert!(res.is_success());
 
-        let alice = contract
-            .as_account()
-            .create_subaccount(&worker, "alice")
-            .initial_balance(parse_near!("10 N"))
-            .transact()
-            .await?
-            .into_result()?;
-        register_user(worker, &contract, alice.id()).await?;
-
-        return Ok((contract, alice));
+        return Ok(contract);
     }
 
     #[test_with::file("target/wasm32-unknown-unknown/release/near_atomic_swap.wasm")]
@@ -56,7 +52,15 @@ mod test {
     async fn round_trip() -> Result<()> {
         let initial_balance = U128::from(parse_near!("10000 N"));
         let worker = workspaces::sandbox().await?;
-        let (_contract, _alice) = init(&worker, initial_balance).await?;
+        let _contract = init_fund(
+            &worker,
+            "sender".parse().unwrap(),
+            "receiver".parse().unwrap(),
+            initial_balance,
+            [0; 32],
+            Duration::new(5, 0),
+        )
+        .await?;
         Ok(())
     }
 }
