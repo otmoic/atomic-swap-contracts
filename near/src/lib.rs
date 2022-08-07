@@ -56,8 +56,9 @@ impl Default for Contract {
 
 #[near_bindgen]
 impl Contract {
-    pub fn ping_pong(&self, ping: String) -> String {
-        format!("{ping:} -> pong")
+    #[payable]
+    pub fn ping_pong(&mut self, ping: String, sender: AccountId) -> String {
+        format!("{sender:?} {ping:} -> pong")
     }
 
     /// sets up a new transfer with hash time lock.

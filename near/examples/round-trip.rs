@@ -38,7 +38,7 @@ mod test {
         let contract = worker.dev_deploy(&wasm).await?;
         let res = contract
             .call(&worker, "ping_pong")
-            .args_json(("ping".to_string(),))?
+            .args_json(("ping".to_string(), sender))?
             .gas(300_000_000_000_000)
             .transact()
             .await?;
