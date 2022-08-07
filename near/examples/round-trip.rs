@@ -38,7 +38,9 @@ mod test {
         let contract = worker.dev_deploy(&wasm).await?;
         let res = contract
             .call(&worker, "ping_pong")
-            .args_json((sender, receiver, amount, hashlock, timelock))?
+            .args_json((sender, receiver, amount,
+                        // hashlock, 
+                        timelock))?
             .gas(300_000_000_000_000)
             .transact()
             .await?;

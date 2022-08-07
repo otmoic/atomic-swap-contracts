@@ -62,10 +62,10 @@ impl Contract {
         sender: AccountId,
         receiver: AccountId,
         amount: Balance,
-        hashlock: [u8; 32],
+        // hashlock: [u8; 32],
         timelock: u64,
     ) -> String {
-        format!("{sender:?} {receiver:?} {amount:?} {hashlock:?} {timelock:?}")
+        format!("{sender:?} {receiver:?} {amount:?} {timelock:?}")
     }
 
     /// sets up a new transfer with hash time lock.
