@@ -4,16 +4,18 @@ use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::{log, near_bindgen, AccountId, Balance};
 
 #[near_bindgen]
-#[derive(BorshDeserialize, BorshSerialize, Default)]
+#[derive(BorshDeserialize, BorshSerialize)]
 pub struct Contract {}
+
+#[allow(clippy::derivable_impls)]
+impl Default for Contract {
+    fn default() -> Self {
+        Self {}
+    }
+}
 
 #[near_bindgen]
 impl Contract {
-    #[init]
-    pub fn new() -> Self {
-        Self {}
-    }
-
     pub fn transfer_out(
         &self,
         sender: AccountId,
@@ -72,6 +74,6 @@ mod tests {
 
     #[test]
     fn default_contract() {
-        Contract::new();
+        Contract::default();
     }
 }
