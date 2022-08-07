@@ -59,6 +59,14 @@ mod test {
     #[tokio::test]
     async fn round_trip() -> Result<()> {
         let worker = workspaces::sandbox().await?;
+        let account = worker.dev_create_account().await?;
+        let receiver = account
+            .create_subaccount(&worker, "receiver")
+            .transact()
+            .await?
+            .into_result()?;
+        let receiver_id: AccountId = format!("receiver.{}", account.id()).parse().unwrap();
+
         let timelock = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap()
@@ -70,7 +78,7 @@ mod test {
             &worker,
             &contract,
             "caller".parse().unwrap(),
-            "receiver".parse().unwrap(),
+            receiver_id.clone(),
             1,
             [
                 165, 152, 132, 76, 216, 153, 182, 114, 45, 89, 20, 251, 170, 95, 204, 77, 214, 166,
@@ -80,11 +88,13 @@ mod test {
         )
         .await?;
 
+        let receiver_balance = receiver.view_account(&worker).await?.balance;
+
         confirm(
             &worker,
             &contract,
             "caller".parse().unwrap(),
-            "receiver".parse().unwrap(),
+            receiver_id.clone(),
             1,
             [
                 165, 152, 132, 76, 216, 153, 182, 114, 45, 89, 20, 251, 170, 95, 204, 77, 214, 166,
@@ -94,6 +104,10 @@ mod test {
             *b"ssssssssssssssssssssssssssssssss",
         )
         .await?;
+
+        let new_receiver_balance = receiver.view_account(&worker).await?.balance;
+
+        assert_eq!(new_receiver_balance, receiver_balance + 2);
 
         Ok(())
     }
