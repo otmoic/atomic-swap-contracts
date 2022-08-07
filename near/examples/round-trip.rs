@@ -8,34 +8,21 @@ mod test {
     use workspaces::prelude::*;
     use workspaces::{types::Balance, Account, AccountId, Contract, DevNetwork, Network, Worker};
 
-    async fn register_user(
-        worker: &Worker<impl Network>,
-        contract: &Contract,
-        account_id: &AccountId,
-    ) -> Result<()> {
-        let res = contract
-            .call(&worker, "storage_deposit")
-            .args_json((account_id, Option::<bool>::None))?
-            .gas(300_000_000_000_000)
-            .deposit(near_sdk::env::storage_byte_cost() * 125)
-            .transact()
-            .await?;
-        assert!(res.is_success());
-
-        Ok(())
+    async fn init(worker: &Worker<impl DevNetwork>) -> Result<Contract> {
+        let wasm = std::fs::read("../target/wasm32-unknown-unknown/release/near_atomic_swap.wasm")?;
+        let contract = worker.dev_deploy(&wasm).await?;
+        Ok(contract)
     }
 
-    async fn init_fund(
+    async fn fund(
         worker: &Worker<impl DevNetwork>,
+        contract: Contract,
         sender: AccountId,
         receiver: AccountId,
         amount: Balance,
         hashlock: [u8; 32],
         timelock: u64,
     ) -> Result<Contract> {
-        let wasm = std::fs::read("../target/wasm32-unknown-unknown/release/near_atomic_swap.wasm")?;
-        let contract = worker.dev_deploy(&wasm).await?;
-
         let res = contract
             .call(&worker, "fund")
             .args_json((sender, receiver, amount, hashlock, timelock))?
@@ -77,8 +64,15 @@ mod test {
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        let contract = init_fund(
+
+        let contract = init(&worker).await?;
+
+        let contract_detail = worker.view_account(contract.id()).await?;
+        let contract_balance = contract_detail.balance;
+
+        let contract = fund(
             &worker,
+            contract,
             "caller".parse().unwrap(),
             "receiver".parse().unwrap(),
             1,
@@ -89,6 +83,9 @@ mod test {
             timelock,
         )
         .await?;
+
+        let contract_detail = worker.view_account(contract.id()).await?;
+        assert_eq!(contract_detail.balance, contract_balance + 2);
 
         confirm(
             &worker,
