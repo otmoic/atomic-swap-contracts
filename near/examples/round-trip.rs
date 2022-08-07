@@ -3,11 +3,10 @@ fn main() {}
 #[cfg(test)]
 mod test {
     use anyhow::Result;
-    use near_sdk::json_types::U128;
     use near_units::parse_near;
     use std::time::SystemTime;
     use workspaces::prelude::*;
-    use workspaces::{Account, AccountId, Contract, DevNetwork, Network, Worker};
+    use workspaces::{types::Balance, Account, AccountId, Contract, DevNetwork, Network, Worker};
 
     async fn register_user(
         worker: &Worker<impl Network>,
@@ -30,24 +29,20 @@ mod test {
         worker: &Worker<impl DevNetwork>,
         sender: AccountId,
         receiver: AccountId,
-        amount: U128,
+        amount: Balance,
         hashlock: [u8; 32],
         timelock: u64,
     ) -> Result<Contract> {
         let wasm = std::fs::read("../target/wasm32-unknown-unknown/release/near_atomic_swap.wasm")?;
         let contract = worker.dev_deploy(&wasm).await?;
         let res = contract
-            .call(&worker, "ping_pong")
-            .args_json((sender, receiver, 
-                        // amount,
-                        hashlock, 
-                        timelock))?
+            .call(&worker, "fund")
+            .args_json((sender, receiver, amount, hashlock, timelock))?
             .gas(300_000_000_000_000)
             .transact()
             .await?;
         assert!(res.is_success());
-        let return_msg: String = res.json()?;
-        assert_eq!(return_msg, "".to_string());
+        println!("{res:?}");
 
         return Ok(contract);
     }
@@ -55,13 +50,12 @@ mod test {
     #[test_with::file("target/wasm32-unknown-unknown/release/near_atomic_swap.wasm")]
     #[tokio::test]
     async fn round_trip() -> Result<()> {
-        let initial_balance = U128::from(parse_near!("10000 N"));
         let worker = workspaces::sandbox().await?;
         let _contract = init_fund(
             &worker,
             "sender".parse().unwrap(),
             "receiver".parse().unwrap(),
-            initial_balance,
+            1000,
             [0; 32],
             SystemTime::now()
                 .duration_since(SystemTime::UNIX_EPOCH)
