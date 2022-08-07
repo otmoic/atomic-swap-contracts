@@ -5,7 +5,7 @@ mod test {
     use anyhow::Result;
     use near_sdk::json_types::U128;
     use near_units::parse_near;
-    use std::time::Duration;
+    use std::time::SystemTime;
     use workspaces::prelude::*;
     use workspaces::{Account, AccountId, Contract, DevNetwork, Network, Worker};
 
@@ -32,7 +32,7 @@ mod test {
         receiver: AccountId,
         amount: U128,
         hashlock: [u8; 32],
-        timelock: Duration,
+        timelock: u64,
     ) -> Result<Contract> {
         let wasm = std::fs::read("../target/wasm32-unknown-unknown/release/near_atomic_swap.wasm")?;
         let contract = worker.dev_deploy(&wasm).await?;
@@ -58,7 +58,10 @@ mod test {
             "receiver".parse().unwrap(),
             initial_balance,
             [0; 32],
-            Duration::new(5, 0),
+            SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
         )
         .await?;
         Ok(())

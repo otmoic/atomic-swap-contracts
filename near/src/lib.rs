@@ -1,5 +1,5 @@
 #![allow(clippy::too_many_arguments)]
-use std::{collections::HashMap, time::Duration};
+use std::collections::HashMap;
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::{env, log, near_bindgen, require, AccountId, Balance, Promise};
@@ -64,7 +64,7 @@ impl Contract {
         receiver: AccountId,
         amount: Balance,
         hashlock: [u8; 32],
-        timelock: Duration,
+        timelock: u64,
     ) {
         if near_sdk::env::attached_deposit() < amount + FEE {
             log!(
@@ -88,7 +88,7 @@ impl Contract {
             receiver,
             amount,
             hashlock,
-            timelock.as_secs(),
+            timelock,
         )));
     }
 
@@ -99,7 +99,7 @@ impl Contract {
         receiver: AccountId,
         amount: Balance,
         hashlock: [u8; 32],
-        timelock: Duration,
+        timelock: u64,
         secret_key: [u8; 32],
     ) {
         log!("confirm with {}", sender);
@@ -133,7 +133,7 @@ impl Contract {
         receiver: AccountId,
         amount: Balance,
         hashlock: [u8; 32],
-        timelock: Duration,
+        timelock: u64,
     ) {
         log!("refund to {}", sender);
         let pending_transfer_id = keccak256(&sender, &receiver, amount, hashlock, timelock);
@@ -143,7 +143,7 @@ impl Contract {
                 "not pending transfer"
             );
             require!(
-                timelock.as_secs() <= env::block_timestamp(),
+                timelock <= env::block_timestamp(),
                 "timelock not yet passed"
             );
 
@@ -163,14 +163,14 @@ fn keccak256(
     bridge: &AccountId,
     amount: Balance,
     hashlock: [u8; 32],
-    timelock: Duration,
+    timelock: u64,
 ) -> [u8; 32] {
     let mut hasher = Sha3_256::new();
     hasher.update(sender.as_bytes());
     hasher.update(bridge.as_bytes());
     hasher.update(amount.to_be_bytes());
     hasher.update(hashlock);
-    hasher.update(timelock.as_secs().to_be_bytes());
+    hasher.update(timelock.to_be_bytes());
     let result = hasher.finalize();
     let out: [u8; 32] = result.try_into().unwrap();
     out
@@ -197,7 +197,7 @@ mod tests {
     use super::*;
     use near_sdk::test_utils::VMContextBuilder;
     use near_sdk::{testing_env, VMContext};
-    use std::time::SystemTime;
+    use std::time::{Duration, SystemTime};
 
     fn get_context(is_view: bool) -> VMContext {
         VMContextBuilder::new()
@@ -220,7 +220,8 @@ mod tests {
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap();
         let five_seconds_later = now + Duration::new(5, 0);
-        let _fund_contract = contract.fund(sender, receiver, 1, [0; 32], five_seconds_later);
+        let _fund_contract =
+            contract.fund(sender, receiver, 1, [0; 32], five_seconds_later.as_secs());
     }
 
     #[test]
