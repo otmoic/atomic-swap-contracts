@@ -39,4 +39,4 @@ jobs:
           nix develop -c cargo test -p near-atomic-swap
 
       - name: Integratiom Test
-        run: nix develop -c cargo test -p near-atomic-swap --examples
+        run: nix develop -c cargo test -p near-atomic-swap --examples -- --nocapture
