@@ -61,11 +61,11 @@ impl Contract {
         &mut self,
         sender: AccountId,
         receiver: AccountId,
-        amount: Balance,
-        // hashlock: [u8; 32],
+        // amount: Balance,
+        hashlock: [u8; 32],
         timelock: u64,
     ) -> String {
-        format!("{sender:?} {receiver:?} {amount:?} {timelock:?}")
+        format!("{sender:?} {receiver:?} {hashlock:?} {timelock:?}")
     }
 
     /// sets up a new transfer with hash time lock.
