@@ -6,16 +6,16 @@ mod test {
     use near_units::parse_near;
     use std::time::SystemTime;
     use workspaces::prelude::*;
-    use workspaces::{types::Balance, Account, AccountId, Contract, DevNetwork, Worker};
+    use workspaces::{network::Sandbox, types::Balance, Account, AccountId, Contract, Worker};
 
-    async fn init(worker: &Worker<impl DevNetwork>) -> Result<Contract> {
+    async fn init(worker: &Worker<Sandbox>) -> Result<Contract> {
         let wasm = std::fs::read("../target/wasm32-unknown-unknown/release/near_atomic_swap.wasm")?;
         let contract = worker.dev_deploy(&wasm).await?;
         Ok(contract)
     }
 
     async fn fund(
-        worker: &Worker<impl DevNetwork>,
+        worker: &Worker<Sandbox>,
         contract: &Contract,
         caller: &Account,
         sender: &AccountId,
@@ -37,7 +37,7 @@ mod test {
     }
 
     async fn confirm(
-        worker: &Worker<impl DevNetwork>,
+        worker: &Worker<Sandbox>,
         contract: &Contract,
         caller: &Account,
         sender: &AccountId,
@@ -62,7 +62,7 @@ mod test {
     #[tokio::test]
     async fn round_trip() -> Result<()> {
         let worker = workspaces::sandbox().await?;
-        let account = worker.dev_create_account().await?;
+        let account = worker.root_account()?;
 
         let sender = account
             .create_subaccount(&worker, "sender")
@@ -70,7 +70,6 @@ mod test {
             .transact()
             .await?
             .into_result()?;
-        let sender_id: AccountId = format!("sender.{}", account.id()).parse().unwrap();
 
         let sender_balance = sender.view_account(&worker).await?.balance;
         assert_eq!(sender_balance, 20_000_000_000_000_000_000_000_000);
@@ -81,7 +80,6 @@ mod test {
             .transact()
             .await?
             .into_result()?;
-        let receiver_id: AccountId = format!("receiver.{}", account.id()).parse().unwrap();
 
         let receiver_balance = receiver.view_account(&worker).await?.balance;
         assert_eq!(receiver_balance, 1_000_000_000_000_000_000_000_000);
@@ -97,8 +95,8 @@ mod test {
             &worker,
             &contract,
             &sender,
-            &sender_id,
-            &receiver_id,
+            &sender.id(),
+            &receiver.id(),
             100,
             [
                 165, 152, 132, 76, 216, 153, 182, 114, 45, 89, 20, 251, 170, 95, 204, 77, 214, 166,
@@ -112,8 +110,8 @@ mod test {
             &worker,
             &contract,
             &receiver,
-            &sender_id,
-            &receiver_id,
+            &sender.id(),
+            &receiver.id(),
             100,
             [
                 165, 152, 132, 76, 216, 153, 182, 114, 45, 89, 20, 251, 170, 95, 204, 77, 214, 166,
