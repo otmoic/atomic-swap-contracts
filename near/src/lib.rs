@@ -113,7 +113,7 @@ impl Contract {
 
             *transfer_status = TransferStatus::Confirmed;
 
-            let _ = Promise::new(env::current_account_id())
+            Promise::new(receiver)
                 .transfer(amount)
                 .and(Promise::new(PLATFORM.parse().unwrap()).transfer(FEE));
 
@@ -148,7 +148,7 @@ impl Contract {
 
             *transfer_status = TransferStatus::Refunded;
 
-            let _ = Promise::new(env::current_account_id()).transfer(amount);
+            Promise::new(sender).transfer(amount);
             self.events.push(Event::Refunded(pending_transfer_id));
         } else {
             require!(false, "missing a pending transfer");

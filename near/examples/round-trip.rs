@@ -3,30 +3,32 @@ fn main() {}
 #[cfg(test)]
 mod test {
     use anyhow::Result;
+    use near_units::parse_near;
     use std::time::SystemTime;
     use workspaces::prelude::*;
-    use workspaces::{types::Balance, AccountId, Contract, DevNetwork, Worker};
+    use workspaces::{network::Sandbox, types::Balance, Account, AccountId, Contract, Worker};
 
-    async fn init(worker: &Worker<impl DevNetwork>) -> Result<Contract> {
+    async fn init(worker: &Worker<Sandbox>) -> Result<Contract> {
         let wasm = std::fs::read("../target/wasm32-unknown-unknown/release/near_atomic_swap.wasm")?;
         let contract = worker.dev_deploy(&wasm).await?;
         Ok(contract)
     }
 
     async fn fund(
-        worker: &Worker<impl DevNetwork>,
+        worker: &Worker<Sandbox>,
         contract: &Contract,
-        sender: AccountId,
-        receiver: AccountId,
+        caller: &Account,
+        sender: &AccountId,
+        receiver: &AccountId,
         amount: Balance,
         hashlock: [u8; 32],
         timelock: u64,
     ) -> Result<()> {
-        let res = contract
-            .call(&worker, "fund")
+        let res = caller
+            .call(&worker, contract.id(), "fund")
             .args_json((sender, receiver, amount, hashlock, timelock))?
             .gas(300_000_000_000_000)
-            .deposit(2)
+            .deposit(amount + 1)
             .transact()
             .await?;
         assert!(res.is_success());
@@ -35,17 +37,18 @@ mod test {
     }
 
     async fn confirm(
-        worker: &Worker<impl DevNetwork>,
+        worker: &Worker<Sandbox>,
         contract: &Contract,
-        sender: AccountId,
-        receiver: AccountId,
+        caller: &Account,
+        sender: &AccountId,
+        receiver: &AccountId,
         amount: Balance,
         hashlock: [u8; 32],
         timelock: u64,
         secret_key: [u8; 32],
     ) -> Result<()> {
-        let res = contract
-            .call(&worker, "confirm")
+        let res = caller
+            .call(&worker, contract.id(), "confirm")
             .args_json((sender, receiver, amount, hashlock, timelock, secret_key))?
             .gas(300_000_000_000_000)
             .transact()
@@ -59,6 +62,28 @@ mod test {
     #[tokio::test]
     async fn round_trip() -> Result<()> {
         let worker = workspaces::sandbox().await?;
+        let account = worker.root_account()?;
+
+        let sender = account
+            .create_subaccount(&worker, "sender")
+            .initial_balance(parse_near!("20 N"))
+            .transact()
+            .await?
+            .into_result()?;
+
+        let sender_balance = sender.view_account(&worker).await?.balance;
+        assert_eq!(sender_balance, 20_000_000_000_000_000_000_000_000);
+
+        let receiver = account
+            .create_subaccount(&worker, "receiver")
+            .initial_balance(parse_near!("2 N"))
+            .transact()
+            .await?
+            .into_result()?;
+
+        let receiver_balance = receiver.view_account(&worker).await?.balance;
+        assert_eq!(receiver_balance, 2_000_000_000_000_000_000_000_000);
+
         let timelock = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap()
@@ -69,9 +94,10 @@ mod test {
         fund(
             &worker,
             &contract,
-            "caller".parse().unwrap(),
-            "receiver".parse().unwrap(),
-            1,
+            &sender,
+            &sender.id(),
+            &receiver.id(),
+            10_000_000_000_000_000_000_000_000,
             [
                 165, 152, 132, 76, 216, 153, 182, 114, 45, 89, 20, 251, 170, 95, 204, 77, 214, 166,
                 43, 58, 171, 243, 206, 181, 109, 46, 63, 177, 197, 13, 234, 154,
@@ -83,9 +109,10 @@ mod test {
         confirm(
             &worker,
             &contract,
-            "caller".parse().unwrap(),
-            "receiver".parse().unwrap(),
-            1,
+            &receiver,
+            &sender.id(),
+            &receiver.id(),
+            10_000_000_000_000_000_000_000_000,
             [
                 165, 152, 132, 76, 216, 153, 182, 114, 45, 89, 20, 251, 170, 95, 204, 77, 214, 166,
                 43, 58, 171, 243, 206, 181, 109, 46, 63, 177, 197, 13, 234, 154,
@@ -94,6 +121,13 @@ mod test {
             *b"ssssssssssssssssssssssssssssssss",
         )
         .await?;
+
+        let new_receiver_balance = receiver.view_account(&worker).await?.balance;
+
+        assert!(
+            new_receiver_balance > 11_990_000_000_000_000_000_000_000
+                && new_receiver_balance < 12_000_000_000_000_000_000_000_000
+        );
 
         Ok(())
     }
