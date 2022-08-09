@@ -76,13 +76,13 @@ mod test {
 
         let receiver = account
             .create_subaccount(&worker, "receiver")
-            .initial_balance(parse_near!("1 N"))
+            .initial_balance(parse_near!("2 N"))
             .transact()
             .await?
             .into_result()?;
 
         let receiver_balance = receiver.view_account(&worker).await?.balance;
-        assert_eq!(receiver_balance, 1_000_000_000_000_000_000_000_000);
+        assert_eq!(receiver_balance, 2_000_000_000_000_000_000_000_000);
 
         let timelock = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
