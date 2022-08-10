@@ -1,7 +1,8 @@
 [package]
-
 name = "near-atomic-swap"
 version = "0.1.0"
+description = "Near atomic swap contract"
+authors = ["Antonio Yang <yanganto@gmail.com>"]
 edition = "2021"
 
 [lib]
@@ -11,6 +12,7 @@ crate-type = ["cdylib", "rlib"]
 near-sdk = { git = "https://github.com/near/near-sdk-rs", branch = "master" }
 uint = { version = "0.9.3", default-features = false }
 sha3 = "0.10.1"
+utils = { path = "../utils" }
 
 [dev-dependencies]
 anyhow = "1.0"

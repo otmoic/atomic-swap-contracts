@@ -3,4 +3,5 @@
 members = [
     "near",
     "solana",
+    "utils",
 ]
