@@ -14,34 +14,26 @@ const FEE: Balance = 1;
 /// The address of the platform to receive the fee
 const PLATFORM: &str = "platform.near";
 
-#[derive(BorshDeserialize, BorshSerialize, PartialEq)]
-enum TransferStatus {
-    Pending,
-    Confirmed,
+#[derive(BorshDeserialize, BorshSerialize, PartialEq, Debug)]
+pub enum TransferStatus {
+    Pending((AccountId, AccountId, Balance, u64)),
+    Confirmed((AccountId, AccountId, Balance, u64, SecretKey)),
     Refunded,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Debug, PartialEq)]
-pub enum Event {
-    Fund(
-        (
-            TransferId,
-            AccountId, // sender
-            AccountId, // receiver
-            Balance,
-            HashLock,
-            u64, // UNIX timestamp
-        ),
-    ),
-    Confirmed((TransferId, SecretKey)),
-    Refunded(TransferId),
+impl TransferStatus {
+    fn is_pending(&self) -> bool {
+        match self {
+            TransferStatus::Pending(_) => true,
+            _ => false,
+        }
+    }
 }
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct Contract {
-    transfers: HashMap<TransferId, TransferStatus>,
-    events: Vec<Event>,
+    pub transfers: HashMap<TransferId, TransferStatus>,
 }
 
 #[allow(clippy::derivable_impls)]
@@ -49,7 +41,6 @@ impl Default for Contract {
     fn default() -> Self {
         Self {
             transfers: HashMap::new(),
-            events: vec![],
         }
     }
 }
@@ -65,7 +56,7 @@ impl Contract {
         amount: Balance,
         hashlock: [u8; 32],
         timelock: u64,
-    ) {
+    ) -> TransferId {
         if near_sdk::env::attached_deposit() < amount + FEE {
             log!(
                 "attached deposit should more than {} and fee {}",
@@ -79,16 +70,19 @@ impl Contract {
 
         let transfer_id = keccak256(&sender, &receiver, amount, hashlock, timelock);
 
-        self.transfers.insert(transfer_id, TransferStatus::Pending);
-
-        self.events.push(Event::Fund((
+        self.transfers.insert(
             transfer_id,
-            sender,
-            receiver,
-            amount,
-            hashlock,
-            timelock,
-        )));
+            TransferStatus::Pending((sender, receiver, amount, timelock)),
+        );
+
+        transfer_id
+    }
+
+    pub fn check(&mut self, transfer_id: TransferId) -> String {
+        self.transfers
+            .get(&transfer_id)
+            .map(|t| format!("{t:?}"))
+            .unwrap_or("".to_string())
     }
 
     /// confirm a transfer.
@@ -105,20 +99,15 @@ impl Contract {
         let pending_transfer_id = keccak256(&sender, &receiver, amount, hashlock, timelock);
 
         if let Some(transfer_status) = self.transfers.get_mut(&pending_transfer_id) {
-            require!(
-                *transfer_status == TransferStatus::Pending,
-                "not pending transfer"
-            );
+            require!(transfer_status.is_pending(), "not pending transfer");
             require!(try_lock(secret_key, hashlock), "incorrect secret_key");
 
-            *transfer_status = TransferStatus::Confirmed;
+            *transfer_status =
+                TransferStatus::Confirmed((sender, receiver.clone(), amount, timelock, secret_key));
 
             Promise::new(receiver)
                 .transfer(amount)
                 .and(Promise::new(PLATFORM.parse().unwrap()).transfer(FEE));
-
-            self.events
-                .push(Event::Confirmed((pending_transfer_id, secret_key)));
         } else {
             require!(false, "missing a pending transfer");
             panic!("it should return before go here");
@@ -137,10 +126,7 @@ impl Contract {
         log!("refund to {}", sender);
         let pending_transfer_id = keccak256(&sender, &receiver, amount, hashlock, timelock);
         if let Some(transfer_status) = self.transfers.get_mut(&pending_transfer_id) {
-            require!(
-                *transfer_status == TransferStatus::Pending,
-                "not pending transfer"
-            );
+            require!(transfer_status.is_pending(), "not pending transfer");
             require!(
                 timelock <= env::block_timestamp(),
                 "timelock not yet passed"
@@ -149,7 +135,6 @@ impl Contract {
             *transfer_status = TransferStatus::Refunded;
 
             Promise::new(sender).transfer(amount);
-            self.events.push(Event::Refunded(pending_transfer_id));
         } else {
             require!(false, "missing a pending transfer");
             panic!("it should return before go here");
