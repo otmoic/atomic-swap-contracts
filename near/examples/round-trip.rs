@@ -2,6 +2,8 @@ fn main() {}
 
 #[cfg(test)]
 mod test {
+    use near_atomic_swap::TransferId;
+
     use anyhow::Result;
     use near_units::parse_near;
     use std::time::SystemTime;
@@ -23,7 +25,7 @@ mod test {
         amount: Balance,
         hashlock: [u8; 32],
         timelock: u64,
-    ) -> Result<()> {
+    ) -> Result<TransferId> {
         let res = caller
             .call(&worker, contract.id(), "fund")
             .args_json((sender, receiver, amount, hashlock, timelock))?
@@ -32,8 +34,23 @@ mod test {
             .transact()
             .await?;
         assert!(res.is_success());
+        Ok(res.json()?)
+    }
 
-        Ok(())
+    async fn check(
+        worker: &Worker<Sandbox>,
+        contract: &Contract,
+        caller: &Account,
+        transfer_id: TransferId,
+    ) -> Result<String> {
+        let res = caller
+            .call(&worker, contract.id(), "check")
+            .args_json((transfer_id,))?
+            .gas(300_000_000_000_000)
+            .transact()
+            .await?;
+        assert!(res.is_success());
+        Ok(res.json()?)
     }
 
     async fn confirm(
@@ -91,7 +108,7 @@ mod test {
 
         let contract = init(&worker).await?;
 
-        fund(
+        let transfer_id = fund(
             &worker,
             &contract,
             &sender,
@@ -106,10 +123,14 @@ mod test {
         )
         .await?;
 
+        let pending_event = check(&worker, &contract, &receiver, transfer_id).await?;
+        // NOTE: the last field is timestamps
+        assert!(pending_event.starts_with("Pending((AccountId(\"sender.test.near\"), AccountId(\"receiver.test.near\"), 10000000000000000000000000, "));
+
         confirm(
             &worker,
             &contract,
-            &receiver,
+            &sender,
             &sender.id(),
             &receiver.id(),
             10_000_000_000_000_000_000_000_000,
@@ -128,6 +149,10 @@ mod test {
             new_receiver_balance > 11_990_000_000_000_000_000_000_000
                 && new_receiver_balance < 12_000_000_000_000_000_000_000_000
         );
+
+        let confirm_event = check(&worker, &contract, &receiver, transfer_id).await?;
+        // NOTE: the last two fields are timestamps and secret
+        assert!(confirm_event.starts_with("Confirmed((AccountId(\"sender.test.near\"), AccountId(\"receiver.test.near\"), 10000000000000000000000000, "));
 
         Ok(())
     }
