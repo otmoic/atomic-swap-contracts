@@ -16,7 +16,7 @@ const PLATFORM: &str = "platform.near";
 
 #[derive(BorshDeserialize, BorshSerialize, PartialEq, Debug)]
 pub enum TransferStatus {
-    Pending((AccountId, AccountId, Balance, u64)),
+    Pending((AccountId, AccountId, Balance, u64, HashLock)),
     Confirmed((AccountId, AccountId, Balance, u64, SecretKey)),
     Refunded,
 }
@@ -54,7 +54,7 @@ impl Contract {
         sender: AccountId,
         receiver: AccountId,
         amount: Balance,
-        hashlock: [u8; 32],
+        hashlock: HashLock,
         timelock: u64,
     ) -> TransferId {
         if near_sdk::env::attached_deposit() < amount + FEE {
@@ -72,7 +72,7 @@ impl Contract {
 
         self.transfers.insert(
             transfer_id,
-            TransferStatus::Pending((sender, receiver, amount, timelock)),
+            TransferStatus::Pending((sender, receiver, amount, timelock, hashlock)),
         );
 
         transfer_id
