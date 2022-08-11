@@ -124,8 +124,9 @@ mod test {
         .await?;
 
         let pending_event = check(&worker, &contract, &receiver, transfer_id).await?;
-        // NOTE: the last field is timestamps
+        // NOTE: the last two field are timestamps and hashlock
         assert!(pending_event.starts_with("Pending((AccountId(\"sender.test.near\"), AccountId(\"receiver.test.near\"), 10000000000000000000000000, "));
+        assert!(pending_event.ends_with("[165, 152, 132, 76, 216, 153, 182, 114, 45, 89, 20, 251, 170, 95, 204, 77, 214, 166, 43, 58, 171, 243, 206, 181, 109, 46, 63, 177, 197, 13, 234, 154]))"));
 
         confirm(
             &worker,
@@ -153,6 +154,7 @@ mod test {
         let confirm_event = check(&worker, &contract, &receiver, transfer_id).await?;
         // NOTE: the last two fields are timestamps and secret
         assert!(confirm_event.starts_with("Confirmed((AccountId(\"sender.test.near\"), AccountId(\"receiver.test.near\"), 10000000000000000000000000, "));
+        assert!(confirm_event.ends_with("[115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115]))"));
 
         Ok(())
     }
