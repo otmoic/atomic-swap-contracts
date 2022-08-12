@@ -2,20 +2,17 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    rust-overlay.url = "github:oxalica/rust-overlay";
     flake-utils.url = "github:numtide/flake-utils";
     dependency-refresh.url = "github:yanganto/dependency-refresh";
+    near.url = "path:near";
+    solana.url = "path:solana";
   };
 
-  outputs = { self, rust-overlay, nixpkgs, flake-utils, dependency-refresh }:
+  outputs = { self, nixpkgs, flake-utils, dependency-refresh, near, solana }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        overlays = [ (import rust-overlay) ];
         pkgs = import nixpkgs {
-          inherit system overlays;
-        };
-        rust = pkgs.rust-bin.stable."1.62.1".default.override {
-          targets = [ "wasm32-unknown-unknown" ];
+          inherit system;
         };
         dr = dependency-refresh.defaultPackage.${system};
         updateDependencyScript = pkgs.writeShellScriptBin "update-dependency" ''
@@ -28,15 +25,15 @@
       in
       with pkgs;
       {
+        packages.${system} = {
+          inherit solana near;
+        };
         devShell = mkShell {
+          name = "ci";
           buildInputs = [
-            rust
             dr
             updateDependencyScript
-            openssl
-            pkg-config
           ];
-          RUST_BACKTRACE = 1;
         };
       }
     );
