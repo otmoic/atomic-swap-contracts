@@ -31,12 +31,15 @@ jobs:
       #     RUST_BACKTRACE: 1
 
       - name: WASM Build
+        working-directory: ./near
         run: nix develop -c cargo build -p near-atomic-swap --target=wasm32-unknown-unknown --release
 
       - name: Native Build & Test
+        working-directory: ./near
         run: |
           nix develop -c cargo build -p near-atomic-swap
           nix develop -c cargo test -p near-atomic-swap
 
       - name: Integratiom Test
+        working-directory: ./near
         run: nix develop -c cargo test -p near-atomic-swap --examples -- --nocapture

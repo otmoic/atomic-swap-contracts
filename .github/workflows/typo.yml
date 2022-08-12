@@ -13,12 +13,14 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - uses: cachix/install-nix-action@v17
+      - uses: actions-rs/toolchain@v1
         with:
-          nix_path: nixpkgs=channel:nixos-unstable
+          toolchain: stable
 
-      - name: Install typos
-        run: nix develop -c 'cargo' install typos-cli
+      - uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args:  typos-cli
 
       - name: Check typo
-        run: nix develop -c 'typos'
+        run: typos

@@ -25,4 +25,9 @@ jobs:
           nix_path: nixpkgs=channel:nixos-unstable
 
       - name: Build
+        working-directory: ./solana
         run: nix develop -c cargo build -p solana-atomic-swap
+
+      - name: Test
+        working-directory: ./solana
+        run: nix develop -c cargo test -p solana-atomic-swap
