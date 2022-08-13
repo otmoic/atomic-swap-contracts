@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -25,20 +23,27 @@ pub enum Method {
 
 #[derive(BorshDeserialize, BorshSerialize, PartialEq, Debug)]
 pub enum TransferStatus {
-    Pending((Pubkey, Pubkey, u64, u64, HashLock)),
-    Confirmed((Pubkey, Pubkey, u64, u64, SecretKey)),
+    Initializd,
+    Pending,
+    Confirmed,
     Refunded,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct Storage {
-    pub transfers: HashMap<(Pubkey, Pubkey, u64, HashLock, u64), TransferStatus>,
+    pub sender: Pubkey,
+    pub receiver: Pubkey,
+    pub amount: u64,
+    pub hashlock: HashLock,
+    pub timelock: u64,
+    pub secret_key: Option<SecretKey>,
+    pub status: TransferStatus,
 }
 
 pub enum Error {
     SecretNotMatch = 1,
-    TransferNotFund = 2,
-    TransferNotPending = 3,
+    TransferExisting = 2,
+    TransferNotMatch = 3,
     LockByTime = 4,
 }
 
@@ -62,11 +67,17 @@ fn fund(
     if account.owner == program_id {
         invoke(&transfer(sender, program_id, amount), &[account.clone()])?;
         let mut storage = Storage::try_from_slice(&account.data.borrow())?;
-        storage.transfers.insert(
-            (*sender, *receiver, amount, hashlock, timelock),
-            TransferStatus::Pending((*sender, *receiver, amount, timelock, hashlock)),
-        );
-        Ok(())
+        if storage.status == TransferStatus::Initializd {
+            storage.sender = *sender;
+            storage.receiver = *receiver;
+            storage.amount = amount;
+            storage.hashlock = hashlock;
+            storage.timelock = timelock;
+            storage.serialize(&mut &mut account.data.borrow_mut()[..])?;
+            Ok(())
+        } else {
+            Err(ProgramError::Custom(Error::TransferExisting as u32))
+        }
     } else {
         Err(ProgramError::IncorrectProgramId)
     }
@@ -88,22 +99,20 @@ fn confirm(
             Err(ProgramError::Custom(Error::SecretNotMatch as u32))
         } else {
             let mut storage = Storage::try_from_slice(&account.data.borrow())?;
-            invoke(&transfer(program_id, receiver, amount), &[account.clone()])?;
-            if let Some(transfer_status) = storage
-                .transfers
-                .get_mut(&(*sender, *receiver, amount, hashlock, timelock))
+            if storage.status == TransferStatus::Pending
+                && storage.sender == *sender
+                && storage.receiver == *receiver
+                && storage.amount == amount
+                && storage.hashlock == hashlock
+                && storage.timelock == timelock
             {
-                match transfer_status {
-                    TransferStatus::Pending(_) => {
-                        *transfer_status = TransferStatus::Confirmed((
-                            *sender, *receiver, amount, timelock, secret_key,
-                        ));
-                        Ok(())
-                    }
-                    _ => Err(ProgramError::Custom(Error::TransferNotPending as u32)),
-                }
+                invoke(&transfer(program_id, receiver, amount), &[account.clone()])?;
+                storage.secret_key = Some(secret_key);
+                storage.status = TransferStatus::Confirmed;
+                storage.serialize(&mut &mut account.data.borrow_mut()[..])?;
+                Ok(())
             } else {
-                Err(ProgramError::Custom(Error::TransferNotFund as u32))
+                Err(ProgramError::Custom(Error::TransferNotMatch as u32))
             }
         }
     } else {
@@ -120,27 +129,26 @@ fn refund(
     hashlock: HashLock,
     timelock: u64,
 ) -> ProgramResult {
-    msg!("refund to {}", sender);
+    msg!("confirm with {}", sender);
     if account.owner == program_id {
         let now_ts = Clock::get().unwrap().unix_timestamp;
         if (now_ts as u64) < timelock {
             Err(ProgramError::Custom(Error::LockByTime as u32))
         } else {
             let mut storage = Storage::try_from_slice(&account.data.borrow())?;
-            invoke(&transfer(program_id, receiver, amount), &[account.clone()])?;
-            if let Some(transfer_status) = storage
-                .transfers
-                .get_mut(&(*sender, *receiver, amount, hashlock, timelock))
+            if storage.status == TransferStatus::Pending
+                && storage.sender == *sender
+                && storage.receiver == *receiver
+                && storage.amount == amount
+                && storage.hashlock == hashlock
+                && storage.timelock == timelock
             {
-                match transfer_status {
-                    TransferStatus::Pending(_) => {
-                        *transfer_status = TransferStatus::Refunded;
-                        Ok(())
-                    }
-                    _ => Err(ProgramError::Custom(Error::TransferNotPending as u32)),
-                }
+                invoke(&transfer(program_id, sender, amount), &[account.clone()])?;
+                storage.status = TransferStatus::Refunded;
+                storage.serialize(&mut &mut account.data.borrow_mut()[..])?;
+                Ok(())
             } else {
-                Err(ProgramError::Custom(Error::TransferNotFund as u32))
+                Err(ProgramError::Custom(Error::TransferNotMatch as u32))
             }
         }
     } else {
