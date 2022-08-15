@@ -14,6 +14,11 @@ use solana_program::{
 
 use utils::{try_lock, HashLock, SecretKey};
 
+/// The constant fee to platform for each transfer
+const FEE: u64 = 1;
+/// The address of the platform to receive the fee
+const PLATFORM: Pubkey = Pubkey::new_from_array([0; 32]);
+
 #[derive(BorshDeserialize, BorshSerialize)]
 pub enum Method {
     Fund(Pubkey, Pubkey, u64, HashLock, u64),
@@ -65,6 +70,7 @@ fn fund(
         account
     );
     if account.owner == program_id {
+        invoke(&transfer(sender, &PLATFORM, FEE), &[account.clone()])?;
         invoke(&transfer(sender, program_id, amount), &[account.clone()])?;
         let mut storage = Storage::try_from_slice(&account.data.borrow())?;
         if storage.status == TransferStatus::Initializd {
