@@ -31,3 +31,7 @@ jobs:
       - name: Test
         working-directory: ./solana
         run: nix develop -c cargo test -p solana-atomic-swap
+
+      - name: Integration Test
+        working-directory: ./solana
+        run: nix develop -c cargo test -p solana-atomic-swap --examples
