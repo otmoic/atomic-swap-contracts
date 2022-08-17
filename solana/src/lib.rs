@@ -18,7 +18,7 @@ use utils::{try_lock, HashLock, SecretKey};
 /// The constant fee to platform for each transfer
 const FEE: u64 = 1;
 /// The address of the platform to receive the fee
-const PLATFORM: Pubkey = Pubkey::new_from_array([0; 32]);
+const PLATFORM: Pubkey = Pubkey::new_from_array([255; 32]);
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub enum Method {
@@ -133,7 +133,7 @@ fn refund(
     hashlock: HashLock,
     timelock: u64,
 ) -> ProgramResult {
-    msg!("confirm with {}", sender);
+    msg!("refund with {}", sender);
     if account.owner == program_id {
         let now_ts = Clock::get().unwrap().unix_timestamp;
         if (now_ts as u64) < timelock {

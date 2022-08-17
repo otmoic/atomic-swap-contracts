@@ -18,7 +18,7 @@ mod test {
     #[tokio::test]
     async fn round_trip() {
         let program_id = Pubkey::new_unique();
-        let platform_key = Pubkey::new_from_array([0; 32]);
+        let platform_key = Pubkey::new_from_array([255; 32]);
         let sender_key = Pubkey::new_from_array([1; 32]);
         let receiver_key = Pubkey::new_from_array([2; 32]);
 
