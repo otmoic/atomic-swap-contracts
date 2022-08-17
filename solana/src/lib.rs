@@ -22,9 +22,9 @@ const PLATFORM: Pubkey = Pubkey::new_from_array([255; 32]);
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub enum Method {
-    Fund(Pubkey, Pubkey, u64, HashLock, u64),
-    Confirm(Pubkey, Pubkey, u64, HashLock, u64, SecretKey),
-    Refund(Pubkey, Pubkey, u64, HashLock, u64),
+    Fund(u64, HashLock, u64),
+    Confirm(u64, HashLock, u64, SecretKey),
+    Refund(u64, HashLock, u64),
 }
 
 #[derive(BorshDeserialize, BorshSerialize, PartialEq, Debug, Default)]
@@ -52,32 +52,45 @@ pub enum Error {
     TransferExisting = 2,
     TransferNotMatch = 3,
     LockByTime = 4,
+    PlatfromIncorrect = 5,
 }
 
 entrypoint!(atomic_swap);
 
 fn fund(
     program_id: &Pubkey,
-    account: &AccountInfo,
-    sender: &Pubkey,
-    receiver: &Pubkey,
+    accounts: &[AccountInfo],
     amount: u64,
     hashlock: HashLock,
     timelock: u64,
 ) -> ProgramResult {
-    msg!("transfer from {} to {}", sender, receiver);
-    if account.owner == program_id {
-        invoke(&transfer(sender, &PLATFORM, FEE), &[account.clone()])?;
-        invoke(&transfer(sender, program_id, amount), &[account.clone()])?;
-        let mut storage = Storage::try_from_slice(&account.data.borrow())?;
+    let accounts_iter = &mut accounts.iter();
+    let contract = next_account_info(accounts_iter)?;
+    let sender = next_account_info(accounts_iter)?;
+    let receiver = next_account_info(accounts_iter)?;
+    let platform = next_account_info(accounts_iter)?;
+    msg!("transfer from {} to {}", sender.key, receiver.key);
+    if *platform.key != PLATFORM {
+        return Err(ProgramError::Custom(Error::PlatfromIncorrect as u32));
+    }
+    if contract.owner == program_id {
+        invoke(
+            &transfer(&sender.key, &platform.key, amount + FEE),
+            &[sender.clone(), platform.clone()],
+        )?;
+        invoke(
+            &transfer(&sender.key, &contract.key, amount),
+            &[sender.clone(), contract.clone()],
+        )?;
+        let mut storage = Storage::try_from_slice(&contract.data.borrow())?;
         if storage.status == TransferStatus::Initializd {
-            storage.sender = *sender;
-            storage.receiver = *receiver;
+            storage.sender = *sender.key;
+            storage.receiver = *receiver.key;
             storage.amount = amount;
             storage.hashlock = hashlock;
             storage.timelock = timelock;
             storage.status = TransferStatus::Pending;
-            storage.serialize(&mut &mut account.data.borrow_mut()[..])?;
+            storage.serialize(&mut &mut contract.data.borrow_mut()[..])?;
             Ok(())
         } else {
             Err(ProgramError::Custom(Error::TransferExisting as u32))
@@ -89,31 +102,36 @@ fn fund(
 
 fn confirm(
     program_id: &Pubkey,
-    account: &AccountInfo,
-    sender: &Pubkey,
-    receiver: &Pubkey,
+    accounts: &[AccountInfo],
     amount: u64,
     hashlock: HashLock,
     timelock: u64,
     secret_key: SecretKey,
 ) -> ProgramResult {
-    msg!("confirm with {}", sender);
-    if account.owner == program_id {
+    let accounts_iter = &mut accounts.iter();
+    let contract = next_account_info(accounts_iter)?;
+    let sender = next_account_info(accounts_iter)?;
+    let receiver = next_account_info(accounts_iter)?;
+    msg!("confirm with {}", sender.key);
+    if contract.owner == program_id {
         if !try_lock(secret_key, hashlock) {
             Err(ProgramError::Custom(Error::SecretNotMatch as u32))
         } else {
-            let mut storage = Storage::try_from_slice(&account.data.borrow())?;
+            let mut storage = Storage::try_from_slice(&contract.data.borrow())?;
             if storage.status == TransferStatus::Pending
-                && storage.sender == *sender
-                && storage.receiver == *receiver
+                && storage.sender == *sender.key
+                && storage.receiver == *receiver.key
                 && storage.amount == amount
                 && storage.hashlock == hashlock
                 && storage.timelock == timelock
             {
-                invoke(&transfer(program_id, receiver, amount), &[account.clone()])?;
+                invoke(
+                    &transfer(&contract.key, &receiver.key, amount),
+                    &[contract.clone(), receiver.clone()],
+                )?;
                 storage.secret_key = secret_key;
                 storage.status = TransferStatus::Confirmed;
-                storage.serialize(&mut &mut account.data.borrow_mut()[..])?;
+                storage.serialize(&mut &mut contract.data.borrow_mut()[..])?;
                 Ok(())
             } else {
                 Err(ProgramError::Custom(Error::TransferNotMatch as u32))
@@ -126,30 +144,35 @@ fn confirm(
 
 fn refund(
     program_id: &Pubkey,
-    account: &AccountInfo,
-    sender: &Pubkey,
-    receiver: &Pubkey,
+    accounts: &[AccountInfo],
     amount: u64,
     hashlock: HashLock,
     timelock: u64,
 ) -> ProgramResult {
-    msg!("refund with {}", sender);
-    if account.owner == program_id {
+    let accounts_iter = &mut accounts.iter();
+    let contract = next_account_info(accounts_iter)?;
+    let sender = next_account_info(accounts_iter)?;
+    let receiver = next_account_info(accounts_iter)?;
+    msg!("refund with {}", sender.key);
+    if contract.owner == program_id {
         let now_ts = Clock::get().unwrap().unix_timestamp;
         if (now_ts as u64) < timelock {
             Err(ProgramError::Custom(Error::LockByTime as u32))
         } else {
-            let mut storage = Storage::try_from_slice(&account.data.borrow())?;
+            let mut storage = Storage::try_from_slice(&contract.data.borrow())?;
             if storage.status == TransferStatus::Pending
-                && storage.sender == *sender
-                && storage.receiver == *receiver
+                && storage.sender == *sender.key
+                && storage.receiver == *receiver.key
                 && storage.amount == amount
                 && storage.hashlock == hashlock
                 && storage.timelock == timelock
             {
-                invoke(&transfer(program_id, sender, amount), &[account.clone()])?;
+                invoke(
+                    &transfer(&contract.key, &sender.key, amount),
+                    &[contract.clone(), sender.clone()],
+                )?;
                 storage.status = TransferStatus::Refunded;
-                storage.serialize(&mut &mut account.data.borrow_mut()[..])?;
+                storage.serialize(&mut &mut contract.data.borrow_mut()[..])?;
                 Ok(())
             } else {
                 Err(ProgramError::Custom(Error::TransferNotMatch as u32))
@@ -166,18 +189,16 @@ pub fn atomic_swap(
     instruction_data: &[u8],
 ) -> ProgramResult {
     if let Ok(method) = Method::try_from_slice(instruction_data) {
-        let accounts_iter = &mut accounts.iter();
-        let account = next_account_info(accounts_iter)?;
         match method {
-            Method::Fund(sender, receiver, amount, hashlock, timelock) => fund(
-                program_id, account, &sender, &receiver, amount, hashlock, timelock,
-            )?,
-            Method::Confirm(sender, receiver, amount, hashlock, timelock, secret_key) => confirm(
-                program_id, account, &sender, &receiver, amount, hashlock, timelock, secret_key,
-            )?,
-            Method::Refund(sender, receiver, amount, hashlock, timelock) => refund(
-                program_id, account, &sender, &receiver, amount, hashlock, timelock,
-            )?,
+            Method::Fund(amount, hashlock, timelock) => {
+                fund(program_id, accounts, amount, hashlock, timelock)?
+            }
+            Method::Confirm(amount, hashlock, timelock, secret_key) => {
+                confirm(program_id, accounts, amount, hashlock, timelock, secret_key)?
+            }
+            Method::Refund(amount, hashlock, timelock) => {
+                refund(program_id, accounts, amount, hashlock, timelock)?
+            }
         }
     } else {
         msg!("Unsupported method");
