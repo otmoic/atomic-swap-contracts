@@ -65,16 +65,10 @@ fn fund(
     hashlock: HashLock,
     timelock: u64,
 ) -> ProgramResult {
-    msg!(
-        "transfer from {} to {}, account({:?})",
-        sender,
-        receiver,
-        account
-    );
+    msg!("transfer from {} to {}", sender, receiver);
     if account.owner == program_id {
         invoke(&transfer(sender, &PLATFORM, FEE), &[account.clone()])?;
         invoke(&transfer(sender, program_id, amount), &[account.clone()])?;
-        msg!("transfer invoke called");
         let mut storage = Storage::try_from_slice(&account.data.borrow())?;
         if storage.status == TransferStatus::Initializd {
             storage.sender = *sender;
