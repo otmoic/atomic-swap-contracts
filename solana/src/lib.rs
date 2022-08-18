@@ -1,4 +1,5 @@
 #![feature(derive_default_enum)]
+
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -211,34 +212,75 @@ pub fn atomic_swap(
 mod test {
     use super::*;
     use solana_program::clock::Epoch;
+    use std::mem;
     use std::time::{Duration, SystemTime};
 
     #[test]
     fn sanity_round_trip() {
         let program_id = Pubkey::default();
-        let sender_key = Pubkey::default();
-        let mut lamports = 0;
-        let mut data = Storage::default().try_to_vec().unwrap();
         let owner = Pubkey::default();
-        let account = AccountInfo::new(
+        let key = Pubkey::default();
+        let mut contract_lamports = 0;
+        let mut contract_data = Storage::default().try_to_vec().unwrap();
+        let contract = AccountInfo::new(
+            &key,
+            false,
+            true,
+            &mut contract_lamports,
+            &mut contract_data,
+            &program_id,
+            false,
+            Epoch::default(),
+        );
+
+        let sender_key = Pubkey::new_from_array([1; 32]);
+        let mut sender_lamports = 1000;
+        let mut sender_data = vec![0; mem::size_of::<u64>()];
+        let sender = AccountInfo::new(
             &sender_key,
             false,
             true,
-            &mut lamports,
-            &mut data,
+            &mut sender_lamports,
+            &mut sender_data,
             &owner,
             false,
             Epoch::default(),
         );
-        let receiver_key = Pubkey::new_from_array([1; 32]);
+
+        let receiver_key = Pubkey::new_from_array([2; 32]);
+        let mut receiver_lamports = 1000;
+        let mut receiver_data = vec![0; mem::size_of::<u64>()];
+        let receiver = AccountInfo::new(
+            &receiver_key,
+            false,
+            true,
+            &mut receiver_lamports,
+            &mut receiver_data,
+            &owner,
+            false,
+            Epoch::default(),
+        );
+
+        let platfrom_key = Pubkey::new_from_array([255; 32]);
+        let mut platform_lamports = 1000;
+        let mut platform_data = vec![0; mem::size_of::<u64>()];
+        let platform = AccountInfo::new(
+            &platfrom_key,
+            false,
+            true,
+            &mut platform_lamports,
+            &mut platform_data,
+            &owner,
+            false,
+            Epoch::default(),
+        );
+
         let now = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap();
         let five_seconds_later = now + Duration::new(5, 0);
 
         let method = Method::Fund(
-            sender_key,
-            receiver_key,
             100,
             [
                 165, 152, 132, 76, 216, 153, 182, 114, 45, 89, 20, 251, 170, 95, 204, 77, 214, 166,
@@ -248,7 +290,7 @@ mod test {
         );
         let instruction_data: Vec<u8> = method.try_to_vec().unwrap();
 
-        let accounts = vec![account];
+        let accounts = vec![contract, sender, receiver, platform];
 
         let mut storage = Storage::try_from_slice(&accounts[0].data.borrow()).unwrap();
         assert_eq!(storage.status, TransferStatus::Initializd);
@@ -259,8 +301,6 @@ mod test {
         assert_eq!(storage.status, TransferStatus::Pending);
 
         let method = Method::Confirm(
-            sender_key,
-            receiver_key,
             100,
             [
                 165, 152, 132, 76, 216, 153, 182, 114, 45, 89, 20, 251, 170, 95, 204, 77, 214, 166,
@@ -280,29 +320,69 @@ mod test {
     #[test]
     fn incorrect_secret() {
         let program_id = Pubkey::default();
-        let sender_key = Pubkey::default();
-        let mut lamports = 0;
-        let mut data = Storage::default().try_to_vec().unwrap();
         let owner = Pubkey::default();
-        let account = AccountInfo::new(
+        let key = Pubkey::default();
+        let mut contract_lamports = 0;
+        let mut contract_data = Storage::default().try_to_vec().unwrap();
+        let contract = AccountInfo::new(
+            &key,
+            false,
+            true,
+            &mut contract_lamports,
+            &mut contract_data,
+            &program_id,
+            false,
+            Epoch::default(),
+        );
+
+        let sender_key = Pubkey::new_from_array([1; 32]);
+        let mut sender_lamports = 1000;
+        let mut sender_data = vec![0; mem::size_of::<u64>()];
+        let sender = AccountInfo::new(
             &sender_key,
             false,
             true,
-            &mut lamports,
-            &mut data,
+            &mut sender_lamports,
+            &mut sender_data,
             &owner,
             false,
             Epoch::default(),
         );
-        let receiver_key = Pubkey::new_from_array([1; 32]);
+
+        let receiver_key = Pubkey::new_from_array([2; 32]);
+        let mut receiver_lamports = 1000;
+        let mut receiver_data = vec![0; mem::size_of::<u64>()];
+        let receiver = AccountInfo::new(
+            &receiver_key,
+            false,
+            true,
+            &mut receiver_lamports,
+            &mut receiver_data,
+            &owner,
+            false,
+            Epoch::default(),
+        );
+
+        let platfrom_key = Pubkey::new_from_array([255; 32]);
+        let mut platform_lamports = 1000;
+        let mut platform_data = vec![0; mem::size_of::<u64>()];
+        let platform = AccountInfo::new(
+            &platfrom_key,
+            false,
+            true,
+            &mut platform_lamports,
+            &mut platform_data,
+            &owner,
+            false,
+            Epoch::default(),
+        );
+
         let now = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap();
         let five_seconds_later = now + Duration::new(5, 0);
 
         let method = Method::Fund(
-            sender_key,
-            receiver_key,
             100,
             [
                 165, 152, 132, 76, 216, 153, 182, 114, 45, 89, 20, 251, 170, 95, 204, 77, 214, 166,
@@ -312,7 +392,7 @@ mod test {
         );
         let instruction_data: Vec<u8> = method.try_to_vec().unwrap();
 
-        let accounts = vec![account];
+        let accounts = vec![contract, sender, receiver, platform];
 
         let mut storage = Storage::try_from_slice(&accounts[0].data.borrow()).unwrap();
         assert_eq!(storage.status, TransferStatus::Initializd);
@@ -323,8 +403,6 @@ mod test {
         assert_eq!(storage.status, TransferStatus::Pending);
 
         let method = Method::Confirm(
-            sender_key,
-            receiver_key,
             100,
             [
                 165, 152, 132, 76, 216, 153, 182, 114, 45, 89, 20, 251, 170, 95, 204, 77, 214, 166,
