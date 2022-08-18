@@ -72,8 +72,6 @@ mod test {
         let five_seconds_later = now + Duration::new(5, 0);
 
         let method = Method::Fund(
-            sender_key,
-            receiver_key,
             100,
             [
                 165, 152, 132, 76, 216, 153, 182, 114, 45, 89, 20, 251, 170, 95, 204, 77, 214, 166,
@@ -86,7 +84,12 @@ mod test {
             &[Instruction::new_with_borsh(
                 program_id,
                 &method,
-                vec![AccountMeta::new(sender_key, false)],
+                vec![
+                    AccountMeta::new(sender_key, false),
+                    AccountMeta::new(sender_key, false),
+                    AccountMeta::new(receiver_key, false),
+                    AccountMeta::new(platform_key, false),
+                ],
             )],
             Some(&payer.pubkey()),
         );
@@ -106,8 +109,6 @@ mod test {
         );
 
         let method = Method::Confirm(
-            sender_key,
-            receiver_key,
             100,
             [
                 165, 152, 132, 76, 216, 153, 182, 114, 45, 89, 20, 251, 170, 95, 204, 77, 214, 166,
@@ -121,7 +122,11 @@ mod test {
             &[Instruction::new_with_borsh(
                 program_id,
                 &method,
-                vec![AccountMeta::new(sender_key, false)],
+                vec![
+                    AccountMeta::new(sender_key, false),
+                    AccountMeta::new(sender_key, false),
+                    AccountMeta::new(receiver_key, false),
+                ],
             )],
             Some(&payer.pubkey()),
         );
