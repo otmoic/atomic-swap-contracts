@@ -1,0 +1,24 @@
+[package]
+name = "solana-atomic-swap"
+version = "0.1.0"
+description = "Solana atomic swap contract"
+authors = ["Antonio Yang <yanganto@gmail.com>"]
+edition = "2021"
+
+[features]
+no-entrypoint = []
+
+[dependencies]
+borsh = "0.9.3"
+borsh-derive = "0.9.1"
+solana-program = "1.11.7"
+utils = { path = "../utils" }
+
+[dev-dependencies]
+bs58 = "0.4"
+solana-program-test = "1.11"
+solana-sdk = "1.11"
+
+[lib]
+name = "atomicswap"
+crate-type = ["cdylib", "lib"]

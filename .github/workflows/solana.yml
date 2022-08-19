@@ -1,0 +1,37 @@
+name: Solana
+
+concurrency:
+  group: solana-${{ github.head_ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - uses: cachix/install-nix-action@v17
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - name: Build
+        working-directory: ./solana
+        run: nix develop -c cargo build -p solana-atomic-swap
+
+      - name: Test
+        working-directory: ./solana
+        run: nix develop -c cargo test -p solana-atomic-swap
+
+      # - name: Integration Test
+      #   working-directory: ./solana
+      #   run: nix develop -c cargo test -p solana-atomic-swap --examples
