@@ -19,7 +19,11 @@ use utils::{try_lock, HashLock, SecretKey};
 /// The constant fee to platform for each transfer
 const FEE: u64 = 1;
 /// The address of the platform to receive the fee
-const PLATFORM: Pubkey = Pubkey::new_from_array([255; 32]);
+/// NOTE: change this when deploy to real case
+const PLATFORM: Pubkey = Pubkey::new_from_array([
+    248, 168, 61, 18, 213, 218, 160, 220, 199, 48, 254, 164, 209, 214, 235, 60, 128, 101, 144, 242,
+    95, 58, 210, 60, 85, 146, 228, 120, 192, 220, 18, 161,
+]);
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub enum Method {
@@ -233,7 +237,14 @@ mod test {
             Epoch::default(),
         );
 
-        let sender_key = Pubkey::new_from_array([1; 32]);
+        let sender_key = Pubkey::new_from_array(
+            TryInto::<[u8; 32]>::try_into(
+                bs58::decode("4MGCWdb7dyCiar6p6RLtmGUGioqzGcPSpzAy4pwdje84")
+                    .into_vec()
+                    .unwrap(),
+            )
+            .unwrap(),
+        );
         let mut sender_lamports = 1000;
         let mut sender_data = vec![0; mem::size_of::<u64>()];
         let sender = AccountInfo::new(
@@ -247,7 +258,14 @@ mod test {
             Epoch::default(),
         );
 
-        let receiver_key = Pubkey::new_from_array([2; 32]);
+        let receiver_key = Pubkey::new_from_array(
+            TryInto::<[u8; 32]>::try_into(
+                bs58::decode("Dxd5TVxwTAx64VSLbhw96oMv25nLgvXVekhmdoF733VV")
+                    .into_vec()
+                    .unwrap(),
+            )
+            .unwrap(),
+        );
         let mut receiver_lamports = 1000;
         let mut receiver_data = vec![0; mem::size_of::<u64>()];
         let receiver = AccountInfo::new(
@@ -261,11 +279,18 @@ mod test {
             Epoch::default(),
         );
 
-        let platfrom_key = Pubkey::new_from_array([255; 32]);
+        let platform_key = Pubkey::new_from_array(
+            TryInto::<[u8; 32]>::try_into(
+                bs58::decode("HjeuCtvgiGu3nA2xVqMsJc9W3aUss32Dwpp2qAtqr6mn")
+                    .into_vec()
+                    .unwrap(),
+            )
+            .unwrap(),
+        );
         let mut platform_lamports = 1000;
-        let mut platform_data = vec![0; mem::size_of::<u64>()];
+        let mut platform_data = Vec::new();
         let platform = AccountInfo::new(
-            &platfrom_key,
+            &platform_key,
             false,
             true,
             &mut platform_lamports,
@@ -335,7 +360,14 @@ mod test {
             Epoch::default(),
         );
 
-        let sender_key = Pubkey::new_from_array([1; 32]);
+        let sender_key = Pubkey::new_from_array(
+            TryInto::<[u8; 32]>::try_into(
+                bs58::decode("4MGCWdb7dyCiar6p6RLtmGUGioqzGcPSpzAy4pwdje84")
+                    .into_vec()
+                    .unwrap(),
+            )
+            .unwrap(),
+        );
         let mut sender_lamports = 1000;
         let mut sender_data = vec![0; mem::size_of::<u64>()];
         let sender = AccountInfo::new(
@@ -349,7 +381,14 @@ mod test {
             Epoch::default(),
         );
 
-        let receiver_key = Pubkey::new_from_array([2; 32]);
+        let receiver_key = Pubkey::new_from_array(
+            TryInto::<[u8; 32]>::try_into(
+                bs58::decode("Dxd5TVxwTAx64VSLbhw96oMv25nLgvXVekhmdoF733VV")
+                    .into_vec()
+                    .unwrap(),
+            )
+            .unwrap(),
+        );
         let mut receiver_lamports = 1000;
         let mut receiver_data = vec![0; mem::size_of::<u64>()];
         let receiver = AccountInfo::new(
@@ -363,11 +402,18 @@ mod test {
             Epoch::default(),
         );
 
-        let platfrom_key = Pubkey::new_from_array([255; 32]);
+        let platform_key = Pubkey::new_from_array(
+            TryInto::<[u8; 32]>::try_into(
+                bs58::decode("HjeuCtvgiGu3nA2xVqMsJc9W3aUss32Dwpp2qAtqr6mn")
+                    .into_vec()
+                    .unwrap(),
+            )
+            .unwrap(),
+        );
         let mut platform_lamports = 1000;
-        let mut platform_data = vec![0; mem::size_of::<u64>()];
+        let mut platform_data = Vec::new();
         let platform = AccountInfo::new(
-            &platfrom_key,
+            &platform_key,
             false,
             true,
             &mut platform_lamports,

@@ -15,8 +15,9 @@ solana-program = "1.11.7"
 utils = { path = "../utils" }
 
 [dev-dependencies]
-solana-program-test = "1.11.7"
-solana-sdk = "1.11.7"
+bs58 = "0.4"
+solana-program-test = "1.11"
+solana-sdk = "1.11"
 
 [lib]
 name = "atomicswap"

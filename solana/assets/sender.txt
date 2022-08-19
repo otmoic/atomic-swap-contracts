@@ -1,7 +1,0 @@
-Public Key: SRMuApVNdxXokk5GT7XD5cUUgXMBCoAz2LHeuAoKWRt
-Balance: 840.614741399 SOL
-Owner: TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA
-Executable: false
-Rent Epoch: 338
-
-Wrote account data to receiver.bin
