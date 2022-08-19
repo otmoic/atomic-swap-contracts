@@ -57,7 +57,7 @@ pub enum Error {
     TransferExisting = 2,
     TransferNotMatch = 3,
     LockByTime = 4,
-    PlatfromIncorrect = 5,
+    PlatformIncorrect = 5,
 }
 
 entrypoint!(atomic_swap);
@@ -76,7 +76,7 @@ fn fund(
     let platform = next_account_info(accounts_iter)?;
     msg!("transfer from {} to {}", sender.key, receiver.key);
     if *platform.key != PLATFORM {
-        return Err(ProgramError::Custom(Error::PlatfromIncorrect as u32));
+        return Err(ProgramError::Custom(Error::PlatformIncorrect as u32));
     }
     if contract.owner == program_id {
         invoke(
