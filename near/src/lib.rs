@@ -78,11 +78,11 @@ impl Contract {
         transfer_id
     }
 
-    pub fn check(&mut self, transfer_id: TransferId) -> String {
+    pub fn check(&self, transfer_id: TransferId) -> String {
         self.transfers
             .get(&transfer_id)
             .map(|t| format!("{t:?}"))
-            .unwrap_or("".to_string())
+            .unwrap_or("Not Found".to_string())
     }
 
     /// confirm a transfer.
