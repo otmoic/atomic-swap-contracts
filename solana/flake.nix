@@ -13,7 +13,7 @@
         pkgs = import nixpkgs {
           inherit system overlays;
         };
-        rust = pkgs.rust-bin.nightly."2021-11-27".default;
+        rust = pkgs.rust-bin.nightly."2022-08-25".default;
       in
       with pkgs;
       {
