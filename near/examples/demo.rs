@@ -153,12 +153,12 @@ async fn check_transfer(
 #[cfg(feature = "demo")]
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let alice_account_id = prompt("Enter the alice account ID: ")?.parse()?;
-    let alice_secret_key = prompt("Enter the alice's private key: ")?.parse()?;
+    let alice_account_id = prompt("Enter the Alice account ID: ")?.parse()?;
+    let alice_secret_key = prompt("Enter the Alice's private key: ")?.parse()?;
     let alice = InMemorySigner::from_secret_key(alice_account_id, alice_secret_key);
 
-    let bob_account_id = prompt("Enter the bob account ID: ")?.parse()?;
-    let bob_secret_key = prompt("Enter the bob's private key: ")?.parse()?;
+    let bob_account_id = prompt("Enter the Bob account ID: ")?.parse()?;
+    let bob_secret_key = prompt("Enter the Bob's private key: ")?.parse()?;
     let bob = InMemorySigner::from_secret_key(bob_account_id, bob_secret_key);
 
     let client = JsonRpcClient::connect("https://archival-rpc.testnet.near.org");
@@ -191,12 +191,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         call_and_wait_result(&client, &alice, block_hash, nonce + 1, function_call_action).await?;
     let transfer1_id =
         string_to_bytes32(String::from_utf8(result).map_err(|_| "Fail to decode transfer_id")?)?;
-    println!("\ttransfer 1 from alice to bob");
+    println!("\ttransfer 1 from Alice to Bob");
     println!("\ttransfer 1 id: {transfer1_id:?}");
 
     time::sleep(time::Duration::from_secs(6)).await;
 
-    println!("==> Bob check status for alice's transfer");
+    println!("==> Bob check status for Alice's transfer");
     let status = check_transfer(&client, &bob, transfer1_id).await?;
     println!("\tstatus: {status:}");
 
@@ -226,18 +226,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         call_and_wait_result(&client, &alice, block_hash, nonce + 1, function_call_action).await?;
     let transfer2_id =
         string_to_bytes32(String::from_utf8(result).map_err(|_| "Fail to decode transfer_id")?)?;
-    println!("\ttransfer 2 from bob to alice");
+    println!("\ttransfer 2 from Bob to Alice");
     println!("\ttransfer 2 id: {transfer2_id:?}");
 
     time::sleep(time::Duration::from_secs(6)).await;
 
-    println!("==> Alice check status for bob's transfer");
+    println!("==> Alice check status for Bob's transfer");
     let status = check_transfer(&client, &alice, transfer2_id).await?;
     println!("\tstatus: {status:}");
 
     time::sleep(time::Duration::from_secs(6)).await;
 
-    println!("==> Alice confirms bob's transfer");
+    println!("==> Alice confirms Bob's transfer");
     let (block_hash, nonce) = get_hash_and_nonce(&client, &alice).await?;
     let function_call_action = FunctionCallAction {
         method_name: "confirm".to_string(),
@@ -272,7 +272,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     time::sleep(time::Duration::from_secs(6)).await;
 
-    println!("==> Bob confirms alice's transfer");
+    println!("==> Bob confirms Alice's transfer");
     let (block_hash, nonce) = get_hash_and_nonce(&client, &alice).await?;
     let function_call_action = FunctionCallAction {
         method_name: "confirm".to_string(),
