@@ -23,7 +23,9 @@
             rust
             openssl
             pkg-config
+            clang
           ];
+          LIBCLANG_PATH = "${llvmPackages.libclang.lib}/lib";
         };
       }
     );

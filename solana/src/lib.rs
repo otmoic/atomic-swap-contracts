@@ -1,5 +1,3 @@
-#![feature(derive_default_enum)]
-
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
