@@ -11,7 +11,7 @@ mod test {
     use workspaces::{network::Sandbox, types::Balance, Account, AccountId, Contract, Worker};
 
     async fn init(worker: &Worker<Sandbox>) -> Result<Contract> {
-        let wasm = std::fs::read("../target/wasm32-unknown-unknown/release/near_atomic_swap.wasm")?;
+        let wasm = std::fs::read("./target/wasm32-unknown-unknown/release/near_atomic_swap.wasm")?;
         let contract = worker.dev_deploy(&wasm).await?;
         Ok(contract)
     }

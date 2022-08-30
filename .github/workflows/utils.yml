@@ -25,4 +25,5 @@ jobs:
           nix_path: nixpkgs=channel:nixos-unstable
 
       - name: Test
+        working-directory: ./utils
         run: nix develop -c cargo test -p utils
