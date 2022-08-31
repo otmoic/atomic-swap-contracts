@@ -11,4 +11,4 @@ platform keyparis: [151,169,215,175,229,66,48,80,136,36,122,48,255,14,52,84,178,
 
 Program for testnet
 ---
-Program Id: 9bF8wRhemGx9DYDtsrwqwCM1g4eWv1J41ju3QrWyH2T
+Program Id: AGFbaMhMvQvmaiWxGGg1EfPtV7zbyuj6rYddUvuX2LbX

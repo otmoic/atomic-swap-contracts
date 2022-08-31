@@ -1,21 +1,38 @@
-use std::error::Error;
-use std::io::{self, Write};
-use std::time::{Duration, SystemTime};
+#![allow(unused)]
+//! Demo client on testnet
 
+#[cfg(feature = "demo")]
+use std::{
+    error::Error,
+    io::{self, Write},
+    time::{Duration, SystemTime},
+};
+
+#[cfg(feature = "demo")]
 use borsh::{BorshDeserialize, BorshSerialize};
 
+#[cfg(feature = "demo")]
 use solana_rpc_client::rpc_client::RpcClient;
-use solana_sdk::instruction::{AccountMeta, Instruction};
-use solana_sdk::message::Message;
-use solana_sdk::pubkey::Pubkey;
-use solana_sdk::signature::Signer;
-use solana_sdk::signer::keypair::{read_keypair_file, Keypair};
-use solana_sdk::transaction::Transaction;
-use solana_streamer::socket::SocketAddrSpace;
-use solana_test_validator::TestValidator;
 
+#[cfg(feature = "demo")]
+use solana_sdk::{
+    instruction::{AccountMeta, Instruction},
+    message::Message,
+    pubkey::Pubkey,
+    signature::Signer,
+    signer::keypair::{read_keypair_file, Keypair},
+    transaction::Transaction,
+};
+
+#[cfg(feature = "demo")]
 use atomicswap::{Method, Storage, TransferStatus};
 
+#[cfg(not(feature = "demo"))]
+fn main() {
+    println!("Please run this demo app with demo feature");
+}
+
+#[cfg(feature = "demo")]
 fn main() -> Result<(), Box<dyn Error>> {
     let alice = ask_key_file("Enter Alice key file:")?;
     let bob = ask_key_file("Enter Bob key file:")?;
@@ -25,31 +42,24 @@ fn main() -> Result<(), Box<dyn Error>> {
         242, 95, 58, 210, 60, 85, 146, 228, 120, 192, 220, 18, 161,
     ]);
 
-    let test_validator =
-        TestValidator::with_no_fees(alice.pubkey(), None, SocketAddrSpace::Unspecified);
-
-    let client = RpcClient::new(test_validator.rpc_url());
+    let client = RpcClient::new("https://api.testnet.solana.com");
 
     let alice_balance = client.get_balance(&alice.pubkey());
     let bob_balance = client.get_balance(&bob.pubkey());
     println!("Alice balance: {alice_balance:?}");
     println!("Bob balance: {bob_balance:?}");
 
-    let program = Keypair::from_bytes(&[
-        232, 34, 223, 147, 169, 2, 72, 132, 139, 171, 254, 9, 33, 161, 2, 67, 144, 182, 107, 212,
-        239, 221, 243, 61, 20, 60, 126, 228, 214, 198, 161, 69, 49, 195, 220, 166, 166, 179, 74,
-        195, 173, 137, 220, 13, 17, 57, 87, 25, 219, 89, 110, 107, 74, 234, 208, 6, 251, 254, 213,
-        114, 236, 136, 139, 157,
-    ])
-    .unwrap();
+    let program = Pubkey::new_from_array(
+        TryInto::<[u8; 32]>::try_into(
+            bs58::decode("AGFbaMhMvQvmaiWxGGg1EfPtV7zbyuj6rYddUvuX2LbX")
+                .into_vec()
+                .unwrap(),
+        )
+        .unwrap(),
+    );
 
     println!("==> Alice create contract and call fund");
-    let contract_1 = create_contract_account(
-        &alice,
-        &program,
-        "alice -> bob  1_000_000_000_000_000",
-        &client,
-    )?;
+    let contract_1 = create_contract_account(&alice, &program, "alice -> bob 1000 NEAR", &client)?;
 
     let now = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
@@ -69,8 +79,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         contract_1,
         &method,
         vec![
-            AccountMeta::new(program.pubkey(), false),
-            AccountMeta::new(alice.pubkey(), false),
+            AccountMeta::new(program, false),
+            AccountMeta::new(alice.pubkey(), true),
             AccountMeta::new(bob.pubkey(), false),
             AccountMeta::new(platform_key, false),
         ],
@@ -92,12 +102,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // NOTE: other details also should check here.
 
     println!("==> Bob create contract and call fund");
-    let contract_2 = create_contract_account(
-        &bob,
-        &program,
-        "bob -> alice  2_000_000_000_000_000",
-        &client,
-    )?;
+    let contract_2 = create_contract_account(&bob, &program, "bob -> alice 2000 NEAR", &client)?;
     let ten_mins_lock = (now + Duration::new(600, 0)).as_secs();
     let method = Method::Fund(
         2_000_000_000_000_000,
@@ -112,8 +117,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         contract_2,
         &method,
         vec![
-            AccountMeta::new(program.pubkey(), false),
-            AccountMeta::new(bob.pubkey(), false),
+            AccountMeta::new(program, false),
+            AccountMeta::new(bob.pubkey(), true),
             AccountMeta::new(alice.pubkey(), false),
             AccountMeta::new(platform_key, false),
         ],
@@ -149,9 +154,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         contract_2,
         &method,
         vec![
-            AccountMeta::new(program.pubkey(), false),
+            AccountMeta::new(program, false),
             AccountMeta::new(bob.pubkey(), false),
-            AccountMeta::new(alice.pubkey(), false),
+            AccountMeta::new(alice.pubkey(), true),
         ],
     );
     let message = Message::new(&[instruction], Some(&alice.pubkey()));
@@ -181,9 +186,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         contract_1,
         &method,
         vec![
-            AccountMeta::new(program.pubkey(), false),
+            AccountMeta::new(program, false),
             AccountMeta::new(alice.pubkey(), false),
-            AccountMeta::new(bob.pubkey(), false),
+            AccountMeta::new(bob.pubkey(), true),
         ],
     );
     let message = Message::new(&[instruction], Some(&bob.pubkey()));
@@ -195,6 +200,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+#[cfg(feature = "demo")]
 fn ask_key_file(query: &str) -> Result<Keypair, Box<dyn Error>> {
     print!("{}", query);
     io::stdout().flush()?;
@@ -203,6 +209,7 @@ fn ask_key_file(query: &str) -> Result<Keypair, Box<dyn Error>> {
     read_keypair_file(input.trim())
 }
 
+#[cfg(feature = "demo")]
 fn gen_contract_public_key(
     owner: &Pubkey,
     program: &Pubkey,
@@ -211,13 +218,14 @@ fn gen_contract_public_key(
     Ok(Pubkey::create_with_seed(owner, seed, program)?)
 }
 
+#[cfg(feature = "demo")]
 fn create_contract_account(
     owner: &Keypair,
-    program: &Keypair,
+    program: &Pubkey,
     seed: &str,
     client: &RpcClient,
 ) -> Result<Pubkey, Box<dyn Error>> {
-    let contract_pubkey = gen_contract_public_key(&owner.pubkey(), &program.pubkey(), seed)?;
+    let contract_pubkey = gen_contract_public_key(&owner.pubkey(), program, seed)?;
 
     if let Err(_) = client.get_account(&contract_pubkey) {
         let data_size = Storage::default().try_to_vec().unwrap().len();
@@ -230,15 +238,14 @@ fn create_contract_account(
             seed,
             lamport_requirement,
             data_size as u64,
-            &program.pubkey(),
+            program,
         );
         let message = Message::new(&[instruction], Some(&owner.pubkey()));
         let transaction = Transaction::new(&[owner], message, client.get_latest_blockhash()?);
 
         client.send_and_confirm_transaction(&transaction)?;
-
-        Ok(contract_pubkey)
     } else {
-        Err("contract exist".into())
+        println!("contract exist, use the existing one");
     }
+    Ok(contract_pubkey)
 }

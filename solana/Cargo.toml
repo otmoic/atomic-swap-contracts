@@ -7,6 +7,7 @@ edition = "2021"
 
 [features]
 no-entrypoint = []
+demo = [ "solana-streamer", "solana-test-validator", "solana-rpc-client" ]
 
 [dependencies]
 borsh = "0.9"
@@ -14,9 +15,9 @@ borsh-derive = "0.9"
 solana-program = "1.11"
 utils = { path = "../utils" }
 
-solana-streamer = { git = "https://github.com/solana-labs/solana.git", package = "solana-streamer", rev = "56cebf9" }
-solana-test-validator = { git = "https://github.com/solana-labs/solana.git", package = "solana-test-validator", rev = "56cebf9" }
-solana-rpc-client = { git = "https://github.com/solana-labs/solana.git", package = "solana-rpc-client", rev = "56cebf9" }
+solana-streamer = { git = "https://github.com/solana-labs/solana.git", package = "solana-streamer", rev = "56cebf9", optional = true }
+solana-test-validator = { git = "https://github.com/solana-labs/solana.git", package = "solana-test-validator", rev = "56cebf9", optional = true }
+solana-rpc-client = { git = "https://github.com/solana-labs/solana.git", package = "solana-rpc-client", rev = "56cebf9", optional = true }
 
 [dev-dependencies]
 bs58 = "0.4"
