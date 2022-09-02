@@ -76,10 +76,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     let instruction = Instruction::new_with_borsh(
-        contract_1,
+        program,
         &method,
         vec![
-            AccountMeta::new(program, false),
+            AccountMeta::new(contract_1, false),
             AccountMeta::new(alice.pubkey(), true),
             AccountMeta::new(bob.pubkey(), false),
             AccountMeta::new(platform_key, false),
@@ -114,10 +114,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     let instruction = Instruction::new_with_borsh(
-        contract_2,
+        program,
         &method,
         vec![
-            AccountMeta::new(program, false),
+            AccountMeta::new(contract_2, false),
             AccountMeta::new(bob.pubkey(), true),
             AccountMeta::new(alice.pubkey(), false),
             AccountMeta::new(platform_key, false),
@@ -151,10 +151,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     let instruction = Instruction::new_with_borsh(
-        contract_2,
+        program,
         &method,
         vec![
-            AccountMeta::new(program, false),
+            AccountMeta::new(contract_2, false),
             AccountMeta::new(bob.pubkey(), false),
             AccountMeta::new(alice.pubkey(), true),
         ],
@@ -183,10 +183,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     let instruction = Instruction::new_with_borsh(
-        contract_1,
+        program,
         &method,
         vec![
-            AccountMeta::new(program, false),
+            AccountMeta::new(contract_1, false),
             AccountMeta::new(alice.pubkey(), false),
             AccountMeta::new(bob.pubkey(), true),
         ],
