@@ -12,7 +12,7 @@ demo = [ "solana-streamer", "solana-test-validator", "solana-rpc-client" ]
 [dependencies]
 borsh = "0.9"
 borsh-derive = "0.9"
-solana-program = "1.11"
+solana-program = { git = "https://github.com/solana-labs/solana.git", package = "solana-program", rev = "56cebf9" }
 utils = { path = "../utils" }
 
 solana-streamer = { git = "https://github.com/solana-labs/solana.git", package = "solana-streamer", rev = "56cebf9", optional = true }
