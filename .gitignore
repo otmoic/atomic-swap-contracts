@@ -5,6 +5,7 @@ near/Cargo.toml.old
 solana/target/
 solana/Cargo.lock
 solana/Cargo.toml.old
+solana/assets/
 
 **/*.rs.bk
 .direnv

@@ -1,5 +1,3 @@
-#![feature(derive_default_enum)]
-
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -7,10 +5,8 @@ use solana_program::{
     entrypoint,
     entrypoint::ProgramResult,
     msg,
-    program::invoke,
     program_error::ProgramError,
     pubkey::Pubkey,
-    system_instruction::transfer,
     sysvar::Sysvar,
 };
 
@@ -58,6 +54,7 @@ pub enum Error {
     TransferNotMatch = 3,
     LockByTime = 4,
     PlatformIncorrect = 5,
+    NotEnoughFund = 6,
 }
 
 entrypoint!(atomic_swap);
@@ -73,20 +70,11 @@ fn fund(
     let contract = next_account_info(accounts_iter)?;
     let sender = next_account_info(accounts_iter)?;
     let receiver = next_account_info(accounts_iter)?;
-    let platform = next_account_info(accounts_iter)?;
-    msg!("transfer from {} to {}", sender.key, receiver.key);
-    if *platform.key != PLATFORM {
-        return Err(ProgramError::Custom(Error::PlatformIncorrect as u32));
+    if **contract.try_borrow_lamports()? < amount + FEE {
+        return Err(ProgramError::Custom(Error::NotEnoughFund as u32));
     }
+    msg!("transfer from {} to {}", sender.key, receiver.key);
     if contract.owner == program_id {
-        invoke(
-            &transfer(&sender.key, &platform.key, amount + FEE),
-            &[sender.clone(), platform.clone()],
-        )?;
-        invoke(
-            &transfer(&sender.key, &contract.key, amount),
-            &[sender.clone(), contract.clone()],
-        )?;
         let mut storage = Storage::try_from_slice(&contract.data.borrow())?;
         if storage.status == TransferStatus::Initializd {
             storage.sender = *sender.key;
@@ -117,6 +105,10 @@ fn confirm(
     let contract = next_account_info(accounts_iter)?;
     let sender = next_account_info(accounts_iter)?;
     let receiver = next_account_info(accounts_iter)?;
+    let platform = next_account_info(accounts_iter)?;
+    if *platform.key != PLATFORM {
+        return Err(ProgramError::Custom(Error::PlatformIncorrect as u32));
+    }
     msg!("confirm with {}", sender.key);
     if contract.owner == program_id {
         if !try_lock(secret_key, hashlock) {
@@ -130,10 +122,10 @@ fn confirm(
                 && storage.hashlock == hashlock
                 && storage.timelock == timelock
             {
-                invoke(
-                    &transfer(&contract.key, &receiver.key, amount),
-                    &[contract.clone(), receiver.clone()],
-                )?;
+                **contract.try_borrow_mut_lamports()? -= FEE;
+                **platform.try_borrow_mut_lamports()? += FEE;
+                **contract.try_borrow_mut_lamports()? -= amount;
+                **receiver.try_borrow_mut_lamports()? += amount;
                 storage.secret_key = secret_key;
                 storage.status = TransferStatus::Confirmed;
                 storage.serialize(&mut &mut contract.data.borrow_mut()[..])?;
@@ -158,6 +150,10 @@ fn refund(
     let contract = next_account_info(accounts_iter)?;
     let sender = next_account_info(accounts_iter)?;
     let receiver = next_account_info(accounts_iter)?;
+    let platform = next_account_info(accounts_iter)?;
+    if *platform.key != PLATFORM {
+        return Err(ProgramError::Custom(Error::PlatformIncorrect as u32));
+    }
     msg!("refund with {}", sender.key);
     if contract.owner == program_id {
         let now_ts = Clock::get().unwrap().unix_timestamp;
@@ -172,10 +168,10 @@ fn refund(
                 && storage.hashlock == hashlock
                 && storage.timelock == timelock
             {
-                invoke(
-                    &transfer(&contract.key, &sender.key, amount),
-                    &[contract.clone(), sender.clone()],
-                )?;
+                **contract.try_borrow_mut_lamports()? -= FEE;
+                **platform.try_borrow_mut_lamports()? += FEE;
+                **contract.try_borrow_mut_lamports()? -= amount;
+                **sender.try_borrow_mut_lamports()? += amount;
                 storage.status = TransferStatus::Refunded;
                 storage.serialize(&mut &mut contract.data.borrow_mut()[..])?;
                 Ok(())
@@ -224,7 +220,7 @@ mod test {
         let program_id = Pubkey::default();
         let owner = Pubkey::default();
         let key = Pubkey::default();
-        let mut contract_lamports = 0;
+        let mut contract_lamports = 101;
         let mut contract_data = Storage::default().try_to_vec().unwrap();
         let contract = AccountInfo::new(
             &key,
@@ -347,7 +343,7 @@ mod test {
         let program_id = Pubkey::default();
         let owner = Pubkey::default();
         let key = Pubkey::default();
-        let mut contract_lamports = 0;
+        let mut contract_lamports = 101;
         let mut contract_data = Storage::default().try_to_vec().unwrap();
         let contract = AccountInfo::new(
             &key,
