@@ -5,7 +5,8 @@
 use std::{
     error::Error,
     io::{self, Write},
-    time::{Duration, SystemTime},
+    thread::sleep,
+    time::{Duration, Instant, SystemTime},
 };
 
 #[cfg(feature = "demo")]
@@ -16,11 +17,14 @@ use solana_rpc_client::rpc_client::RpcClient;
 
 #[cfg(feature = "demo")]
 use solana_sdk::{
+    commitment_config::CommitmentConfig,
     instruction::{AccountMeta, Instruction},
     message::Message,
+    native_token::sol_to_lamports,
     pubkey::Pubkey,
     signature::Signer,
     signer::keypair::{read_keypair_file, Keypair},
+    system_transaction,
     transaction::Transaction,
 };
 
@@ -44,14 +48,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let client = RpcClient::new("https://api.testnet.solana.com");
 
-    let alice_balance = client.get_balance(&alice.pubkey());
-    let bob_balance = client.get_balance(&bob.pubkey());
-    println!("Alice balance: {alice_balance:?}");
-    println!("Bob balance: {bob_balance:?}");
-
     let program = Pubkey::new_from_array(
         TryInto::<[u8; 32]>::try_into(
-            bs58::decode("AGFbaMhMvQvmaiWxGGg1EfPtV7zbyuj6rYddUvuX2LbX")
+            bs58::decode("CW3oiqA8KwvTTrG7GSZXHajmy53ZX9hGtKj2XBnCU9MK")
                 .into_vec()
                 .unwrap(),
         )
@@ -59,7 +58,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     println!("==> Alice create contract and call fund");
-    let contract_1 = create_contract_account(&alice, &program, "alice -> bob 1000 NEAR", &client)?;
+    // NOTE: Change the str, this is random seed
+    let contract_1 = create_contract_account(&alice, &program, "alice -> bob 1000", &client)?;
+    let _confirmed = transfer(&client, &alice, &contract_1, 1_001)?;
 
     let now = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
@@ -67,7 +68,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let twenty_mins_lock = (now + Duration::new(1200, 0)).as_secs();
 
     let method = Method::Fund(
-        1_000_000_000_000_000,
+        1_000,
         [
             165, 152, 132, 76, 216, 153, 182, 114, 45, 89, 20, 251, 170, 95, 204, 77, 214, 166, 43,
             58, 171, 243, 206, 181, 109, 46, 63, 177, 197, 13, 234, 154,
@@ -82,7 +83,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             AccountMeta::new(contract_1, false),
             AccountMeta::new(alice.pubkey(), true),
             AccountMeta::new(bob.pubkey(), false),
-            AccountMeta::new(platform_key, false),
         ],
     );
     let message = Message::new(&[instruction], Some(&alice.pubkey()));
@@ -102,10 +102,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     // NOTE: other details also should check here.
 
     println!("==> Bob create contract and call fund");
-    let contract_2 = create_contract_account(&bob, &program, "bob -> alice 2000 NEAR", &client)?;
+    // NOTE: Change the str, this is random seed
+    let contract_2 = create_contract_account(&bob, &program, "bob -> alice 2000", &client)?;
+    let _confirmed = transfer(&client, &bob, &contract_2, 2_001)?;
     let ten_mins_lock = (now + Duration::new(600, 0)).as_secs();
     let method = Method::Fund(
-        2_000_000_000_000_000,
+        2_000,
         [
             165, 152, 132, 76, 216, 153, 182, 114, 45, 89, 20, 251, 170, 95, 204, 77, 214, 166, 43,
             58, 171, 243, 206, 181, 109, 46, 63, 177, 197, 13, 234, 154,
@@ -120,7 +122,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             AccountMeta::new(contract_2, false),
             AccountMeta::new(bob.pubkey(), true),
             AccountMeta::new(alice.pubkey(), false),
-            AccountMeta::new(platform_key, false),
         ],
     );
     let message = Message::new(&[instruction], Some(&bob.pubkey()));
@@ -141,7 +142,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     println!("==> Alice confirms Bob's transfer");
     let method = Method::Confirm(
-        2_000_000_000_000_000,
+        2_000,
         [
             165, 152, 132, 76, 216, 153, 182, 114, 45, 89, 20, 251, 170, 95, 204, 77, 214, 166, 43,
             58, 171, 243, 206, 181, 109, 46, 63, 177, 197, 13, 234, 154,
@@ -157,6 +158,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             AccountMeta::new(contract_2, false),
             AccountMeta::new(bob.pubkey(), false),
             AccountMeta::new(alice.pubkey(), true),
+            AccountMeta::new(platform_key, false),
         ],
     );
     let message = Message::new(&[instruction], Some(&alice.pubkey()));
@@ -173,7 +175,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     println!("==> Bob confirms Alice's transfer");
     let method = Method::Confirm(
-        1_000_000_000_000_000,
+        1_000,
         [
             165, 152, 132, 76, 216, 153, 182, 114, 45, 89, 20, 251, 170, 95, 204, 77, 214, 166, 43,
             58, 171, 243, 206, 181, 109, 46, 63, 177, 197, 13, 234, 154,
@@ -189,6 +191,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             AccountMeta::new(contract_1, false),
             AccountMeta::new(alice.pubkey(), false),
             AccountMeta::new(bob.pubkey(), true),
+            AccountMeta::new(platform_key, false),
         ],
     );
     let message = Message::new(&[instruction], Some(&bob.pubkey()));
@@ -248,4 +251,35 @@ fn create_contract_account(
         println!("contract exist, use the existing one");
     }
     Ok(contract_pubkey)
+}
+
+#[cfg(feature = "demo")]
+fn transfer(
+    client: &RpcClient,
+    sender: &Keypair,
+    receiver: &Pubkey,
+    amount: u64,
+) -> Result<bool, Box<dyn Error>> {
+    let blockhash = client.get_latest_blockhash().unwrap();
+
+    let tx = system_transaction::transfer(sender, receiver, amount, blockhash);
+    let signature = client.send_transaction(&tx).unwrap();
+
+    let mut confirmed_tx = false;
+
+    let now = Instant::now();
+    while now.elapsed().as_secs() <= 20 {
+        let response = client
+            .confirm_transaction_with_commitment(&signature, CommitmentConfig::default())
+            .unwrap();
+
+        if response.value {
+            confirmed_tx = true;
+            break;
+        }
+
+        sleep(Duration::from_millis(500));
+    }
+
+    Ok(confirmed_tx)
 }
