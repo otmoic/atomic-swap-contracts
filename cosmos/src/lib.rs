@@ -1,3 +1,4 @@
+#![allow(clippy::derive_partial_eq_without_eq)]
 use cosmwasm_std::{
     entry_point, to_binary, BankMsg, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError,
     StdResult,
@@ -14,14 +15,14 @@ use utils::{try_lock, HashLock, SecretKey};
 
 pub static TRANSFER_KEY: &[u8] = b"transfers";
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, Debug, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug, JsonSchema)]
 pub enum TransferStatus {
     Pending,
     Confirmed,
     Refunded,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct TransferRecord {
     pub sender: Addr,
     pub receiver: Addr,
@@ -58,7 +59,7 @@ pub enum ContractError {
     IncorrectSecret,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema, Eq)]
 pub struct TransferMsg {
     pub sender: String,
     pub receiver: String,
@@ -153,7 +154,7 @@ pub fn confirm(
         }
     })?;
     Ok(Response::new().add_message(BankMsg::Send {
-        to_address: receiver.into(),
+        to_address: receiver,
         amount: vec![coin],
     }))
 }
