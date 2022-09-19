@@ -1,49 +1,17 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "ConfirmMsg",
+  "title": "InstantiateMsg",
   "type": "object",
   "required": [
-    "coin",
-    "hashlock",
-    "receiver",
-    "secret",
-    "sender",
-    "timelock"
+    "fee",
+    "platform"
   ],
   "properties": {
-    "coin": {
+    "fee": {
       "$ref": "#/definitions/Coin"
     },
-    "hashlock": {
-      "type": "array",
-      "items": {
-        "type": "integer",
-        "format": "uint8",
-        "minimum": 0.0
-      },
-      "maxItems": 32,
-      "minItems": 32
-    },
-    "receiver": {
+    "platform": {
       "type": "string"
-    },
-    "secret": {
-      "type": "array",
-      "items": {
-        "type": "integer",
-        "format": "uint8",
-        "minimum": 0.0
-      },
-      "maxItems": 32,
-      "minItems": 32
-    },
-    "sender": {
-      "type": "string"
-    },
-    "timelock": {
-      "type": "integer",
-      "format": "uint64",
-      "minimum": 0.0
     }
   },
   "definitions": {

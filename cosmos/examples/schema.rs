@@ -3,7 +3,7 @@ use std::fs::create_dir_all;
 
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 
-use cosmos_atomic_swap::{ConfirmMsg, TransferMsg};
+use cosmos_atomic_swap::{ExecuteMsg, InstantiateMsg, TransferMsg};
 
 fn main() {
     let mut out_dir = current_dir().unwrap();
@@ -12,5 +12,6 @@ fn main() {
     remove_schemas(&out_dir).unwrap();
 
     export_schema(&schema_for!(TransferMsg), &out_dir);
-    export_schema(&schema_for!(ConfirmMsg), &out_dir);
+    export_schema(&schema_for!(InstantiateMsg), &out_dir);
+    export_schema(&schema_for!(ExecuteMsg), &out_dir);
 }

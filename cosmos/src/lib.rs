@@ -8,12 +8,22 @@ use serde::{Deserialize, Serialize};
 use sha3::{Digest, Sha3_256};
 
 use cosmwasm_std::{Addr, Coin, Storage};
-use cosmwasm_storage::{bucket, bucket_read, Bucket, ReadonlyBucket};
+use cosmwasm_storage::{
+    bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
+    Singleton,
+};
 
 use thiserror::Error;
 use utils::{try_lock, HashLock, SecretKey};
 
+pub static CONFIG_KEY: &[u8] = b"config";
 pub static TRANSFER_KEY: &[u8] = b"transfers";
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct Config {
+    pub platform: String,
+    pub fee: Coin,
+}
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug, JsonSchema)]
 pub enum TransferStatus {
@@ -31,6 +41,14 @@ pub struct TransferRecord {
     pub timelock: u64,
     pub secret_key: SecretKey,
     pub status: TransferStatus,
+}
+
+pub fn config(storage: &mut dyn Storage) -> Singleton<Config> {
+    singleton(storage, CONFIG_KEY)
+}
+
+pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<Config> {
+    singleton_read(storage, CONFIG_KEY)
 }
 
 pub fn transfers(storage: &mut dyn Storage) -> Bucket<TransferRecord> {
@@ -57,35 +75,47 @@ pub enum ContractError {
 
     #[error("The secret not correct")]
     IncorrectSecret,
-}
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema, Eq)]
-pub struct TransferMsg {
-    pub sender: String,
-    pub receiver: String,
-    pub coin: Coin,
-    pub hashlock: HashLock,
-    pub timelock: u64,
+    #[error("Transfer still locked")]
+    TransferLocked,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct ConfirmMsg {
-    pub sender: String,
-    pub receiver: String,
-    pub coin: Coin,
-    pub hashlock: HashLock,
-    pub timelock: u64,
-    pub secret: SecretKey,
+pub struct InstantiateMsg {
+    platform: String,
+    fee: Coin,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ExecuteMsg {
+    Fund(TransferMsg),
+    Confirm((TransferMsg, SecretKey)),
+    Refund(TransferMsg),
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct TransferMsg {
+    sender: String,
+    receiver: String,
+    coin: Coin,
+    hashlock: HashLock,
+    timelock: u64,
 }
 
 #[cfg(test)]
 mod tests;
 
-fn assert_sent_sufficient_coin(sent: &[Coin], required_coin: &Coin) -> Result<(), ContractError> {
+fn assert_sent_sufficient_coin(
+    sent: &[Coin],
+    required_coin: &Coin,
+    fee_coin: &Coin,
+) -> Result<(), ContractError> {
     let required_amount = required_coin.amount.u128();
-    let sent_sufficient_funds = sent
-        .iter()
-        .any(|coin| coin.denom == required_coin.denom && coin.amount.u128() >= required_amount);
+    let fee_amount = fee_coin.amount.u128();
+    let sent_sufficient_funds = sent.iter().any(|coin| {
+        coin.denom == required_coin.denom && coin.amount.u128() >= required_amount + fee_amount
+    });
 
     if sent_sufficient_funds {
         Ok(())
@@ -95,68 +125,119 @@ fn assert_sent_sufficient_coin(sent: &[Coin], required_coin: &Coin) -> Result<()
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn fund(
+pub fn instantiate(
     deps: DepsMut,
     _env: Env,
-    info: MessageInfo,
-    msg: TransferMsg,
+    _info: MessageInfo,
+    msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
-    let TransferMsg {
-        sender,
-        receiver,
-        coin,
-        hashlock,
-        timelock,
-    } = msg;
-    assert_sent_sufficient_coin(&info.funds, &coin)?;
-    let transfer_id = keccak256(&sender, &receiver, &coin, &hashlock, timelock);
-    let record = TransferRecord {
-        sender: deps.api.addr_validate(&sender)?,
-        receiver: deps.api.addr_validate(&receiver)?,
-        coin,
-        hashlock,
-        timelock,
-        secret_key: [0; 32],
-        status: TransferStatus::Pending,
+    let config_state = Config {
+        platform: msg.platform,
+        fee: msg.fee,
     };
-    transfers(deps.storage).save(&transfer_id, &record)?;
+
+    config(deps.storage).save(&config_state)?;
 
     Ok(Response::default())
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn confirm(
+pub fn execute(
     deps: DepsMut,
-    _env: Env,
-    _info: MessageInfo,
-    msg: ConfirmMsg,
+    env: Env,
+    info: MessageInfo,
+    msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
-    let ConfirmMsg {
-        sender,
-        receiver,
-        coin,
-        hashlock,
-        timelock,
-        secret,
-    } = msg;
-    let transfer_id = keccak256(&sender, &receiver, &coin, &hashlock, timelock);
-    transfers(deps.storage).update(&transfer_id, |t| {
-        if let Some(mut transfer) = t {
-            if try_lock(secret, hashlock) && transfer.status == TransferStatus::Pending {
-                transfer.secret_key = secret;
-                transfer.status = TransferStatus::Confirmed;
-                Ok(transfer)
-            } else {
-                Err(ContractError::IncorrectSecret {})
-            }
-        } else {
-            Err(ContractError::TransferNotExists {})
+    match msg {
+        ExecuteMsg::Fund(msg) => {
+            let TransferMsg {
+                sender,
+                receiver,
+                coin,
+                hashlock,
+                timelock,
+            } = msg;
+            let config_state = config(deps.storage).load()?;
+            assert_sent_sufficient_coin(&info.funds, &coin, &config_state.fee)?;
+            let transfer_id = keccak256(&sender, &receiver, &coin, &hashlock, timelock);
+            let record = TransferRecord {
+                sender: deps.api.addr_validate(&sender)?,
+                receiver: deps.api.addr_validate(&receiver)?,
+                coin,
+                hashlock,
+                timelock,
+                secret_key: [0; 32],
+                status: TransferStatus::Pending,
+            };
+            transfers(deps.storage).save(&transfer_id, &record)?;
+            Ok(Response::default())
         }
-    })?;
-    Ok(Response::new().add_message(BankMsg::Send {
-        to_address: receiver,
-        amount: vec![coin],
-    }))
+        ExecuteMsg::Confirm((msg, secret)) => {
+            let TransferMsg {
+                sender,
+                receiver,
+                coin,
+                hashlock,
+                timelock,
+            } = msg;
+            let transfer_id = keccak256(&sender, &receiver, &coin, &hashlock, timelock);
+            transfers(deps.storage).update(&transfer_id, |t| {
+                if let Some(mut transfer) = t {
+                    if try_lock(secret, hashlock) && transfer.status == TransferStatus::Pending {
+                        transfer.secret_key = secret;
+                        transfer.status = TransferStatus::Confirmed;
+                        Ok(transfer)
+                    } else {
+                        Err(ContractError::IncorrectSecret {})
+                    }
+                } else {
+                    Err(ContractError::TransferNotExists {})
+                }
+            })?;
+            let config_state = config(deps.storage).load()?;
+            Ok(Response::new()
+                .add_message(BankMsg::Send {
+                    to_address: receiver,
+                    amount: vec![coin],
+                })
+                .add_message(BankMsg::Send {
+                    to_address: config_state.platform,
+                    amount: vec![config_state.fee],
+                }))
+        }
+        ExecuteMsg::Refund(msg) => {
+            let TransferMsg {
+                sender,
+                receiver,
+                coin,
+                hashlock,
+                timelock,
+            } = msg;
+            let transfer_id = keccak256(&sender, &receiver, &coin, &hashlock, timelock);
+            transfers(deps.storage).update(&transfer_id, |t| {
+                if let Some(mut transfer) = t {
+                    if env.block.time.seconds() > timelock {
+                        transfer.status = TransferStatus::Refunded;
+                        Ok(transfer)
+                    } else {
+                        Err(ContractError::TransferLocked {})
+                    }
+                } else {
+                    Err(ContractError::TransferNotExists {})
+                }
+            })?;
+            let config_state = config(deps.storage).load()?;
+            Ok(Response::new()
+                .add_message(BankMsg::Send {
+                    to_address: sender,
+                    amount: vec![coin],
+                })
+                .add_message(BankMsg::Send {
+                    to_address: config_state.platform.to_string(),
+                    amount: vec![config_state.fee],
+                }))
+        }
+    }
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
