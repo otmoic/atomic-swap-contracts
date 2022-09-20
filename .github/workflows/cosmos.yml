@@ -29,3 +29,11 @@ jobs:
         run: |
           nix develop -c cargo build
           nix develop -c cargo test
+
+      - name: Build Wasm
+        working-directory: ./cosmos
+        env:
+          RUSTFLAGS: '-C link-arg=-s'
+        run: |
+          nix develop -c cargo install cargo-wasm
+          nix develop -c cargo wasm
