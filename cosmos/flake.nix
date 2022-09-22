@@ -27,6 +27,7 @@
             pkg-config
           ];
           RUST_BACKTRACE = 1;
+          RUSTFLAGS = "-C link-arg=-s";
         };
       }
     );
