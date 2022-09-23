@@ -114,7 +114,9 @@ fn assert_sent_sufficient_coin(
     let required_amount = required_coin.amount.u128();
     let fee_amount = fee_coin.amount.u128();
     let sent_sufficient_funds = sent.iter().any(|coin| {
-        coin.denom == required_coin.denom && coin.amount.u128() >= required_amount + fee_amount
+        coin.denom == required_coin.denom
+            && coin.denom == fee_coin.denom
+            && coin.amount.u128() >= required_amount + fee_amount
     });
 
     if sent_sufficient_funds {
