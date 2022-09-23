@@ -7,5 +7,9 @@ solana/Cargo.lock
 solana/Cargo.toml.old
 solana/assets/
 
+cosmos/target/
+cosmos/Cargo.lock
+cosmos/Cargo.toml.old
+
 **/*.rs.bk
 .direnv

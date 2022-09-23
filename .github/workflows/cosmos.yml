@@ -1,0 +1,39 @@
+name: Cosmos
+
+concurrency:
+  group: cosmos-${{ github.head_ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - uses: cachix/install-nix-action@v17
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - name: Build & Test
+        working-directory: ./cosmos
+        run: |
+          nix develop -c cargo build
+          nix develop -c cargo test
+
+      - name: Build Wasm
+        working-directory: ./cosmos
+        env:
+          RUSTFLAGS: '-C link-arg=-s'
+        run: |
+          nix develop -c cargo install cargo-wasm
+          nix develop -c cargo wasm
