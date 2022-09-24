@@ -1,7 +1,7 @@
 #!/bin/env bash
 
 echo "\n\n==> Deploy"
-RES=$(wasmd tx wasm store cosmos_atomic_swap.wasm --from wallet --node https://rpc.malaga-420.cosmwasm.com:443 --chain-id malaga-420 --gas-prices 0.25umlg --gas auto --gas-adjustment 1.3 -y --output json -b block)
+RES=$(wasmd tx wasm store target/wasm32-unknown-unknown/release/cosmos_atomic_swap.wasm --from wallet --node https://rpc.malaga-420.cosmwasm.com:443 --chain-id malaga-420 --gas-prices 0.25umlg --gas auto --gas-adjustment 1.3 -y --output json -b block)
 CODE_ID=$(echo $RES | jq -r '.logs[0].events[-1].attributes[0].value')
 echo "Code ID: ${CODE_ID}"
 INIT='{"platform": "wasm1y7n3fe6ppa62whq3z5gyh26q30xxhu0gnrzyj9","fee":{"amount":"1","denom":"umlg"}}'
