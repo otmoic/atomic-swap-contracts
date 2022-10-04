@@ -13,7 +13,7 @@ async function main() {
   await obridge.deployed();
 
   console.log(
-  'OBridge contract deployed'
+  `OBridge contract deployed ${obridge.address}`
   );
 }
 
