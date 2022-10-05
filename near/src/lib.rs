@@ -52,16 +52,32 @@ impl Contract {
     pub fn transfer_out(
         &mut self,
         sender: AccountId,
-        receiver: AccountId,
+        bridge: AccountId,
+        token: u64,
         amount: Balance,
         hashlock: HashLock,
         timelock: u64,
+        dst_chain_id: u64,
+        dst_address: String,
+        bid_id: u64,
+        dst_token: String,
+        dst_amount: u64,
     ) -> TransferId {
         let event_msg = format!(
-            r#"{{"event":"transferOut","sender":{},"receiver":{},"amount":{},"hashlock":{:?},"timelock":{}}}"#,
-            sender, receiver, amount, hashlock, timelock
+            r#"{{"event":"transferOut","sender":{},"bridge":{},"token":{},"amount":{},"hashlock":{:?},"timelock":{},"dstChainId": {}, "dstAddress": {}, "bidId": {}, "dstToken": {},"dstAmount":{}}}"#,
+            sender,
+            bridge,
+            token,
+            amount,
+            hashlock,
+            timelock,
+            dst_chain_id,
+            dst_address,
+            bid_id,
+            dst_token,
+            dst_amount
         );
-        let transfer_id = self.fund(sender, receiver, amount, hashlock, timelock);
+        let transfer_id = self.fund(sender, bridge, amount, hashlock, timelock);
         log!(event_msg);
         transfer_id
     }
@@ -71,16 +87,28 @@ impl Contract {
     pub fn transfer_in(
         &mut self,
         sender: AccountId,
-        receiver: AccountId,
-        amount: Balance,
+        dst_address: AccountId,
+        token: u64,
+        token_amount: Balance,
+        near_amount: Balance,
         hashlock: HashLock,
         timelock: u64,
+        src_chain_id: u64,
+        src_transfer_id: TransferId,
     ) -> TransferId {
         let event_msg = format!(
-            r#"{{"event":"transferIn","sender":{},"receiver":{},"amount":{},"hashlock":{:?},"timelock":{}}}"#,
-            sender, receiver, amount, hashlock, timelock
+            r#"{{"event":"transferIn","sender":{},"dstAddress":{},"token":{},"tokenAmount":{},"nearAmount":{},"hashlock":{:?},"timelock":{},"srcChainId":{},"srcTransferId":{:?}}}"#,
+            sender,
+            dst_address,
+            token,
+            token_amount,
+            near_amount,
+            hashlock,
+            timelock,
+            src_chain_id,
+            src_transfer_id
         );
-        let transfer_id = self.fund(sender, receiver, amount, hashlock, timelock);
+        let transfer_id = self.fund(sender, dst_address, near_amount, hashlock, timelock);
         log!(event_msg);
         transfer_id
     }
