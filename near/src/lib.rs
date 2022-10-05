@@ -47,6 +47,44 @@ impl Default for Contract {
 
 #[near_bindgen]
 impl Contract {
+    /// Make transfer and log event for transfer out
+    #[payable]
+    pub fn transfer_out(
+        &mut self,
+        sender: AccountId,
+        receiver: AccountId,
+        amount: Balance,
+        hashlock: HashLock,
+        timelock: u64,
+    ) -> TransferId {
+        let event_msg = format!(
+            r#"{{"event":"transferOut","sender":{},"receiver":{},"amount":{},"hashlock":{:?},"timelock":{}}}"#,
+            sender, receiver, amount, hashlock, timelock
+        );
+        let transfer_id = self.fund(sender, receiver, amount, hashlock, timelock);
+        log!(event_msg);
+        transfer_id
+    }
+
+    /// Make transfer and log event for transfer in
+    #[payable]
+    pub fn transfer_in(
+        &mut self,
+        sender: AccountId,
+        receiver: AccountId,
+        amount: Balance,
+        hashlock: HashLock,
+        timelock: u64,
+    ) -> TransferId {
+        let event_msg = format!(
+            r#"{{"event":"transferIn","sender":{},"receiver":{},"amount":{},"hashlock":{:?},"timelock":{}}}"#,
+            sender, receiver, amount, hashlock, timelock
+        );
+        let transfer_id = self.fund(sender, receiver, amount, hashlock, timelock);
+        log!(event_msg);
+        transfer_id
+    }
+
     /// sets up a new transfer with hash time lock.
     #[payable]
     pub fn fund(
