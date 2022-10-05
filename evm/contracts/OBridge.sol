@@ -125,7 +125,7 @@ contract OBridge is BridgeFee{
         bytes32 hashlock, // hash of the preimage
         uint64 timelock, // UNIX timestamp seconds - locked UNTIL this time
         uint64 dstChainId,
-        address dstAddress,
+        uint256 dstAddress,
         uint64 bidId,
         uint256 tokenDst,
         uint256 amountDst
@@ -156,7 +156,7 @@ contract OBridge is BridgeFee{
         bytes32 _hashlock,
         uint64 _timelock,
         uint64 _dstChainId,
-        address _dstAddress,
+        uint256 _dstAddress,
         uint64 _bidId,
         uint256 _tokenDst,
         uint256 _amountDst
