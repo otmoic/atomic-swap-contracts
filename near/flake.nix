@@ -13,7 +13,7 @@
         pkgs = import nixpkgs {
           inherit system overlays;
         };
-        rust = pkgs.rust-bin.stable."1.62.1".default.override {
+        rust = pkgs.rust-bin.stable."1.64.0".default.override {
           targets = [ "wasm32-unknown-unknown" ];
         };
       in
