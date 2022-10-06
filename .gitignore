@@ -13,3 +13,4 @@ cosmos/Cargo.toml.old
 
 **/*.rs.bk
 .direnv
+.history
