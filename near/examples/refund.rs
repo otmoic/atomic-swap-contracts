@@ -5,7 +5,6 @@ mod test {
     use anyhow::Result;
     use near_units::parse_near;
     use std::time::SystemTime;
-    use workspaces::prelude::*;
     use workspaces::{types::Balance, Account, AccountId, Contract, DevNetwork, Worker};
 
     async fn init(worker: &Worker<impl DevNetwork>) -> Result<Contract> {
@@ -15,7 +14,6 @@ mod test {
     }
 
     async fn fund(
-        worker: &Worker<impl DevNetwork>,
         contract: &Contract,
         caller: &Account,
         sender: &AccountId,
@@ -25,8 +23,8 @@ mod test {
         timelock: u64,
     ) -> Result<()> {
         let res = caller
-            .call(&worker, contract.id(), "fund")
-            .args_json((sender, receiver, amount, hashlock, timelock))?
+            .call(contract.id(), "fund")
+            .args_json((sender, receiver, amount, hashlock, timelock))
             .gas(300_000_000_000_000)
             .deposit(amount + 1)
             .transact()
@@ -37,7 +35,6 @@ mod test {
     }
 
     async fn refund(
-        worker: &Worker<impl DevNetwork>,
         contract: &Contract,
         caller: &Account,
         sender: &AccountId,
@@ -47,8 +44,8 @@ mod test {
         timelock: u64,
     ) -> Result<()> {
         let res = caller
-            .call(&worker, contract.id(), "refund")
-            .args_json((sender, receiver, amount, hashlock, timelock))?
+            .call(contract.id(), "refund")
+            .args_json((sender, receiver, amount, hashlock, timelock))
             .gas(300_000_000_000_000)
             .transact()
             .await?;
@@ -64,23 +61,23 @@ mod test {
         let account = worker.root_account()?;
 
         let sender = account
-            .create_subaccount(&worker, "sender")
+            .create_subaccount("sender")
             .initial_balance(parse_near!("20 N"))
             .transact()
             .await?
             .into_result()?;
 
-        let mut sender_balance = sender.view_account(&worker).await?.balance;
+        let mut sender_balance = sender.view_account().await?.balance;
         assert_eq!(sender_balance, 20_000_000_000_000_000_000_000_000);
 
         let receiver = account
-            .create_subaccount(&worker, "receiver")
+            .create_subaccount("receiver")
             .initial_balance(parse_near!("2 N"))
             .transact()
             .await?
             .into_result()?;
 
-        let receiver_balance = receiver.view_account(&worker).await?.balance;
+        let receiver_balance = receiver.view_account().await?.balance;
         assert_eq!(receiver_balance, 2_000_000_000_000_000_000_000_000);
 
         let timelock = SystemTime::now()
@@ -91,7 +88,6 @@ mod test {
         let contract = init(&worker).await?;
 
         fund(
-            &worker,
             &contract,
             &sender,
             &sender.id(),
@@ -106,7 +102,6 @@ mod test {
         .await?;
 
         refund(
-            &worker,
             &contract,
             &sender,
             &sender.id(),
@@ -120,7 +115,7 @@ mod test {
         )
         .await?;
 
-        sender_balance = sender.view_account(&worker).await?.balance;
+        sender_balance = sender.view_account().await?.balance;
         assert!(
             sender_balance < 20_000_000_000_000_000_000_000_000
                 && sender_balance > 19_900_000_000_000_000_000_000_000

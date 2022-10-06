@@ -11,7 +11,6 @@ mod test {
     use anyhow::Result;
     use near_units::parse_near;
     use std::time::{Duration, SystemTime};
-    use workspaces::prelude::*;
     use workspaces::{network::Sandbox, types::Balance, Account, AccountId, Contract, Worker};
 
     async fn init(worker: &Worker<Sandbox>) -> Result<Contract> {
@@ -21,7 +20,6 @@ mod test {
     }
 
     async fn fund(
-        worker: &Worker<Sandbox>,
         contract: &Contract,
         caller: &Account,
         sender: &AccountId,
@@ -31,8 +29,8 @@ mod test {
         timelock: u64,
     ) -> Result<TransferId> {
         let res = caller
-            .call(&worker, contract.id(), "fund")
-            .args_json((sender, receiver, amount, hashlock, timelock))?
+            .call(contract.id(), "fund")
+            .args_json((sender, receiver, amount, hashlock, timelock))
             .gas(300_000_000_000_000)
             .deposit(amount + 1)
             .transact()
@@ -42,14 +40,13 @@ mod test {
     }
 
     async fn check(
-        worker: &Worker<Sandbox>,
         contract: &Contract,
         caller: &Account,
         transfer_id: TransferId,
     ) -> Result<String> {
         let res = caller
-            .call(&worker, contract.id(), "check")
-            .args_json((transfer_id,))?
+            .call(contract.id(), "check")
+            .args_json((transfer_id,))
             .gas(300_000_000_000_000)
             .transact()
             .await?;
@@ -58,7 +55,6 @@ mod test {
     }
 
     async fn confirm(
-        worker: &Worker<Sandbox>,
         contract: &Contract,
         caller: &Account,
         sender: &AccountId,
@@ -69,8 +65,8 @@ mod test {
         secret_key: [u8; 32],
     ) -> Result<()> {
         let res = caller
-            .call(&worker, contract.id(), "confirm")
-            .args_json((sender, receiver, amount, hashlock, timelock, secret_key))?
+            .call(contract.id(), "confirm")
+            .args_json((sender, receiver, amount, hashlock, timelock, secret_key))
             .gas(300_000_000_000_000)
             .transact()
             .await?;
@@ -88,23 +84,23 @@ mod test {
         let account = worker.root_account()?;
 
         let alice = account
-            .create_subaccount(&worker, "alice")
+            .create_subaccount("alice")
             .initial_balance(parse_near!("100 N"))
             .transact()
             .await?
             .into_result()?;
 
-        let alice_balance = alice.view_account(&worker).await?.balance;
+        let alice_balance = alice.view_account().await?.balance;
         assert_eq!(alice_balance, 100_000_000_000_000_000_000_000_000);
 
         let bob = account
-            .create_subaccount(&worker, "bob")
+            .create_subaccount("bob")
             .initial_balance(parse_near!("100 N"))
             .transact()
             .await?
             .into_result()?;
 
-        let bob_balance = bob.view_account(&worker).await?.balance;
+        let bob_balance = bob.view_account().await?.balance;
         assert_eq!(bob_balance, 100_000_000_000_000_000_000_000_000);
 
         let now = SystemTime::now()
@@ -121,7 +117,6 @@ mod test {
         // After fund called, Alice can get the transfer_id from the return.
         // Then she passes the transfer_id to Bob by other channel
         let transfer_id = fund(
-            &worker,
             &contract,
             &alice,
             &alice.id(),
@@ -138,7 +133,7 @@ mod test {
         // When Bob having the transfer_id, he can check the transfer is there and the details are as the same as Alice say or not?
         // And the meanwhile Bob can know the hashlock
         // The hashlock is [165, 152, 132, 76, 216, 153, 182, 114, 45, 89, 20, 251, 170, 95, 204, 77, 214, 166, 43, 58, 171, 243, 206, 181, 109, 46, 63, 177, 197, 13, 234, 154]
-        let pending_event = check(&worker, &contract, &bob, transfer_id).await?;
+        let pending_event = check(&contract, &bob, transfer_id).await?;
 
         // Note: the last two fields are timestamps and hashlock
         assert!(pending_event.starts_with("Pending((AccountId(\"alice.test.near\"), AccountId(\"bob.test.near\"), 10000000000000000000000000, "));
@@ -166,7 +161,6 @@ mod test {
         // Also, he passes the transfer_id2 to Alic by other channel
         let ten_mins_lock = (now + Duration::new(600, 0)).as_secs();
         let transfer_id2 = fund(
-            &worker,
             &contract,
             &bob,
             &bob.id(),
@@ -181,7 +175,7 @@ mod test {
         .await?;
 
         // When Alice having the transfer_id2, she can check the transfer is there, and the transfer details are as the same as Bob say or not?
-        let pending_event = check(&worker, &contract, &alice, transfer_id2).await?;
+        let pending_event = check(&contract, &alice, transfer_id2).await?;
 
         // Note: the last two fields are timestamps and hashlock
         assert!(pending_event.starts_with("Pending((AccountId(\"bob.test.near\"), AccountId(\"alice.test.near\"), 5000000000000000000000000, "));
@@ -204,7 +198,6 @@ mod test {
         // Now Alice can use the secret key to confirm Bob's HTLC(transfer 2) and get the money (5 Near)
         // The secret is *b"ssssssssssssssssssssssssssssssss"
         confirm(
-            &worker,
             &contract,
             &alice,
             &bob.id(),
@@ -220,7 +213,7 @@ mod test {
         .await?;
 
         // After Alice confirms the contract, Bob can check his HTLC(transfer 2) and know the secret without asking Alice
-        let confirm_event = check(&worker, &contract, &bob, transfer_id2).await?;
+        let confirm_event = check(&contract, &bob, transfer_id2).await?;
         // NOTE: the last two fields are timestamps and secret
         assert!(confirm_event.starts_with("Confirmed((AccountId(\"bob.test.near\"), AccountId(\"alice.test.near\"), 5000000000000000000000000, "));
         assert!(confirm_event.ends_with("[115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115]))"));
@@ -241,7 +234,6 @@ mod test {
         // Now Bob can use the same secret key to confirm Alice's HTLC(transfer 1) and get the money ( 10 Near )
         // The secret is "[115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115, 115]
         confirm(
-            &worker,
             &contract,
             &bob,
             &alice.id(),
@@ -261,13 +253,13 @@ mod test {
 
         // Overall, Alice has 95 Near (100 - 10 + 5) and Bob has 105 Near ( 100 + 10 - 5 )
         // Note: there are some fee here
-        let new_alice_balance = alice.view_account(&worker).await?.balance;
+        let new_alice_balance = alice.view_account().await?.balance;
         assert!(
             new_alice_balance > 94_900_000_000_000_000_000_000_000
                 && new_alice_balance < 95_000_000_000_000_000_000_000_000
         );
 
-        let new_bob_balance = bob.view_account(&worker).await?.balance;
+        let new_bob_balance = bob.view_account().await?.balance;
         assert!(
             new_bob_balance > 104_900_000_000_000_000_000_000_000
                 && new_bob_balance < 105_000_000_000_000_000_000_000_000
