@@ -58,7 +58,7 @@ impl Contract {
         hashlock: HashLock,
         timelock: u64,
         dst_chain_id: u64,
-        dst_address: String,
+        dst_address: u64,
         bid_id: u64,
         dst_token: String,
         dst_amount: u64,
