@@ -278,12 +278,12 @@ contract OBridge is BridgeFee{
         transfers[_transferId] = TransferStatus.Refunded;
 
         if( _token == address(0) ) {
-            (bool sent, bytes memory data) = _sender.call{value: _token_amount}("");
+            (bool sent, ) = _sender.call{value: _token_amount}("");
             require(sent, "Failed to send Ether");
         } else {
             IERC20(_token).safeTransfer(_sender, _token_amount);
             if( _eth_amount > 0 ) {
-                (bool sent, bytes memory data) = _sender.call{value: _eth_amount}("");
+                (bool sent, ) = _sender.call{value: _eth_amount}("");
                 require(sent, "Failed to send Ether");
             }
         }
